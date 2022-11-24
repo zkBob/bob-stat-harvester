@@ -6,8 +6,8 @@ RUN python -m pip install -r requirements.txt
 
 RUN python -m pip cache purge
 
-WORKDIR /worker
+WORKDIR /app
 
-COPY worker.py .
+COPY abi worker.py ./
 
 ENTRYPOINT python worker.py
