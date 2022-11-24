@@ -8,6 +8,7 @@ RUN python -m pip cache purge
 
 WORKDIR /app
 
-COPY abi worker.py ./
+COPY abi abi
+COPY worker.py .
 
 ENTRYPOINT python worker.py
