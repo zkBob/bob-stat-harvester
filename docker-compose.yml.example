@@ -5,15 +5,13 @@ services:
     image: ghcr.io/zkbob/bob-stat-to-bigquery:${RELAYER_IMAGE:-latest}
     container_name: bob-stat
     environment:
-        - TOKEN_DEPLOYMENTS_INFO=token-deployments-info.json
-        - BIGQUERY_AUTH_JSON_KEY=bigquery-key.json
         - BIGQUERY_PROJECT=some-project
-        - BIGQUERY_DATASET=some-dashboard
+        - BIGQUERY_DATASET=some-dataset
         - BIGQUERY_TABLE=some-table
         - MEASUREMENTS_INTERVAL=7170
     volumes:
-        - ./token-deployments-info.json:/app/$TOKEN_DEPLOYMENTS_INFO
-        - ./bigquery-key.json:/app/$BIGQUERY_AUTH_JSON_KEY
+        - ./token-deployments-info.json:/app/token-deployments-info.json
+        - ./bigquery-key.json:/app/bigquery-key.json
     restart: unless-stopped
     logging:
         driver: "json-file"
