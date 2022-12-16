@@ -40,7 +40,9 @@ exchanges_to_chains = {'uniswap_v3_polygon_pos': 'pol',
                        'quickswap_v3': 'eth',
                        'uniswap_v3_optimism': 'opt',
                        'uniswap_v3': 'eth',
-                       'kyberswap_elastic_bsc': 'bsc'
+                       'kyberswap_elastic_bsc': 'bsc',
+                       'balancer_polygon': 'pol',
+                       'pancakeswap_new': 'bsc'
                       }
 
 ABI_UNIV3_PM = "abi/uniswapv3_pm.json"
