@@ -37,12 +37,13 @@ kyberswap_positions_fields_pos = ["nonce", "operator", "poolId", "tickLower", "t
 kyberswap_positions_fields_info = ["token0", "fee", "token1"]
 
 exchanges_to_chains = {'uniswap_v3_polygon_pos': 'pol',
-                       'quickswap_v3': 'eth',
-                       'uniswap_v3_optimism': 'opt',
-                       'uniswap_v3': 'eth',
-                       'kyberswap_elastic_bsc': 'bsc',
+                       'kyberswap_elastic_polygon': 'pol',
                        'balancer_polygon': 'pol',
-                       'pancakeswap_new': 'bsc'
+                       'uniswap_v3': 'eth',
+                       'quickswap_v3': 'eth',
+                       'kyberswap_elastic_bsc': 'bsc',
+                       'pancakeswap_new': 'bsc',
+                       'uniswap_v3_optimism': 'opt'
                       }
 
 ABI_UNIV3_PM = "abi/uniswapv3_pm.json"
