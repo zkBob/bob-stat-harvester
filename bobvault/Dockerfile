@@ -5,7 +5,7 @@ RUN apk update && apk upgrade
 RUN apk add --no-cache --virtual .build-deps gcc musl-dev
 
 RUN python -m pip install --upgrade pip
-COPY requirements.txt .
+COPY bobvault/requirements.txt .
 RUN python -m pip install -r requirements.txt
 
 # Remove gcc.
