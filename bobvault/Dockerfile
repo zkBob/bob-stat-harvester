@@ -17,6 +17,6 @@ WORKDIR /app
 
 COPY abi/erc20.json abi/erc20.json
 COPY abi/bobvault.json abi/bobvault.json
-COPY bobvault-trades.py .
+COPY bobvault/bobvault-trades.py .
 
 ENTRYPOINT python bobvault-trades.py
