@@ -282,6 +282,13 @@ def get_logs(efilters, from_block, to_block):
     info(f'Collected {len(logs)} events')
     return logs
 
+def gc_encode(obj):
+    if type(obj) == int:
+        return str(obj)
+    if type(obj) == float:
+        return str(obj)
+    return obj
+
 def bobvault_data_for_coingecko(snapshot, ts_start, ts_end):
     logs = snapshot['logs']
     max_log_index = 0
@@ -342,7 +349,8 @@ def bobvault_data_for_coingecko(snapshot, ts_start, ts_end):
                 'high_sell': DEFAULT_SMALL_VALUE,
                 'low_buy': DEFAULT_BIG_VALUE,
                 'low_sell': DEFAULT_BIG_VALUE,
-                'orderbook': {'bids': [[0, 0]], 'asks': [[0, 0]]}, # for BOB bids receive from bobvault
+                'orderbook': {'bids': [[gc_encode(0.0), gc_encode(0.0)]],
+                              'asks': [[gc_encode(0.0), gc_encode(0.0)]]}, # for BOB bids receive from bobvault
                 'trades': {'buy': [], 'sell': []}
             }
             info(ticker_id)
@@ -363,21 +371,23 @@ def bobvault_data_for_coingecko(snapshot, ts_start, ts_end):
                     cg_data[ticker_id]['low_sell'] = price
         xtrade = {
             'trade_id': (trade['blockNumber'] - snapshot['start_block']) * (max_log_index + 1) + trade['logIndex'],
-            'price' : price,
-            'base_volume': base_volume,
-            'target_volume': target_volume,
-            'trade_timestamp': trade['timestamp'],
+            'price' : gc_encode(price),
+            'base_volume': gc_encode(base_volume),
+            'target_volume': gc_encode(target_volume),
+            'trade_timestamp': gc_encode(trade['timestamp']),
             'type': action_type
         }
 
         cg_data[ticker_id]['trades'][action_type].append(xtrade)
 
     if len(cg_data) > 0:
-        one_timestamp = make_web3_call(plg_w3.eth.get_block, snapshot['last_block']).timestamp
+        one_timestamp = gc_encode(make_web3_call(plg_w3.eth.get_block, snapshot['last_block']).timestamp)
 #         one_timestamp = int(time())
 
     for ticker_id in cg_data:
         cg_data[ticker_id]['timestamp'] = one_timestamp
+        cg_data[ticker_id]['base_volume'] = gc_encode(cg_data[ticker_id]['base_volume'])
+        cg_data[ticker_id]['target_volume'] = gc_encode(cg_data[ticker_id]['target_volume'])
 
         # BOB is base, another stable is target: sell target for base
         # BOB is base, another stable is target: buy target for base
@@ -389,10 +399,12 @@ def bobvault_data_for_coingecko(snapshot, ts_start, ts_end):
             cg_data[ticker_id]['high'] = cg_data[ticker_id]['high_sell']
         elif cg_data[ticker_id]['high_buy'] != DEFAULT_SMALL_VALUE:
             cg_data[ticker_id]['high'] = cg_data[ticker_id]['high_buy']
+        cg_data[ticker_id]['high'] = gc_encode(cg_data[ticker_id]['high'])
         if cg_data[ticker_id]['low_buy'] != DEFAULT_BIG_VALUE:
             cg_data[ticker_id]['low'] = cg_data[ticker_id]['low_buy']
         elif cg_data[ticker_id]['low_sell'] != DEFAULT_BIG_VALUE:
             cg_data[ticker_id]['low'] = cg_data[ticker_id]['low_sell']
+        cg_data[ticker_id]['low'] = gc_encode(cg_data[ticker_id]['low'])
         del cg_data[ticker_id]['high_sell']
         del cg_data[ticker_id]['high_buy']
         del cg_data[ticker_id]['low_sell']
@@ -424,8 +436,10 @@ def bobvault_data_for_coingecko(snapshot, ts_start, ts_end):
         del cg_data[ticker_id]['base_address']
         del cg_data[ticker_id]['target_address']
             
-        cg_data[ticker_id]['orderbook']['bids'][0][0] = token2_balance
-        cg_data[ticker_id]['orderbook']['asks'][0][0] = token1_balance
+        cg_data[ticker_id]['orderbook']['bids'][0][0] = gc_encode(token2_balance)
+        cg_data[ticker_id]['orderbook']['bids'][0][1] = gc_encode(cg_data[ticker_id]['orderbook']['bids'][0][1])
+        cg_data[ticker_id]['orderbook']['asks'][0][0] = gc_encode(token1_balance)
+        cg_data[ticker_id]['orderbook']['asks'][0][1] = gc_encode(cg_data[ticker_id]['orderbook']['asks'][0][1])
 
         cg_data[ticker_id]['bid'] = cg_data[ticker_id]['orderbook']['bids'][0][1]
         cg_data[ticker_id]['ask'] = cg_data[ticker_id]['orderbook']['asks'][0][1]
