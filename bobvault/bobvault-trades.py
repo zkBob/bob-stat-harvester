@@ -14,6 +14,8 @@ from logging import basicConfig, getLogger, info, error, debug, warning, WARNING
 import requests
 from requests.auth import AuthBase
 
+import threading
+
 basicConfig(level=INFO)
 
 ABI_ERC20 = "abi/erc20.json"
@@ -35,12 +37,18 @@ HISTORY_BLOCK_RANGE = int(getenv('HISTORY_BLOCK_RANGE', 3000))
 MEASUREMENTS_INTERVAL = int(getenv('MEASUREMENTS_INTERVAL', 60 * 60 * 2 - 30))
 WEB3_RETRY_ATTEMPTS = int(getenv('WEB3_RETRY_ATTEMPTS', 2))
 WEB3_RETRY_DELAY = int(getenv('WEB3_RETRY_DELAY', 5))
-FEEDING_SERVICE_URL= getenv('FEEDING_SERVICE_URL', 'http://127.0.0.1:8080')
-FEEDING_SERVICE_PATH= getenv('FEEDING_SERVICE_PATH', '/')
+FEEDING_SERVICE_URL = getenv('FEEDING_SERVICE_URL', 'http://127.0.0.1:8080')
+FEEDING_SERVICE_PATH = getenv('FEEDING_SERVICE_PATH', '/')
+FEEDING_SERVICE_HEALTH_PATH = getenv('FEEDING_SERVICE_HEALTH_PATH', '/health')
 FEEDING_SERVICE_UPLOAD_TOKEN = getenv('FEEDING_SERVICE_UPLOAD_TOKEN', 'default')
+FEEDING_SERVICE_MONITOR_INTERVAL = int(getenv('FEEDING_SERVICE_MONITOR_INTERVAL', 60))
+FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO = int(getenv('FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO', 60))
 
 if FEEDING_SERVICE_PATH[0] != '/':
     error(f'FEEDING_SERVICE_PATH must start with /')
+    raise BaseException(f'Incorrect configuration')
+if FEEDING_SERVICE_HEALTH_PATH[0] != '/':
+    error(f'FEEDING_SERVICE_HEALTH_PATH must start with /')
     raise BaseException(f'Incorrect configuration')
 
 info(f'TOKEN_DEPLOYMENTS_INFO = {TOKEN_DEPLOYMENTS_INFO}')
@@ -54,10 +62,13 @@ info(f'WEB3_RETRY_ATTEMPTS = {WEB3_RETRY_ATTEMPTS}')
 info(f'WEB3_RETRY_DELAY = {WEB3_RETRY_DELAY}')
 info(f'FEEDING_SERVICE_URL = {FEEDING_SERVICE_URL}')
 info(f'FEEDING_SERVICE_PATH = {FEEDING_SERVICE_PATH}')
+info(f'FEEDING_SERVICE_HEALTH_PATH = {FEEDING_SERVICE_HEALTH_PATH}')
 if FEEDING_SERVICE_UPLOAD_TOKEN != 'default':
     info(f'FEEDING_SERVICE_UPLOAD_TOKEN is set')
 else:
-    info(f'FEEDING_SERVICE_UPLOAD_TOKEN = {UPLOAD_TOKEN}')
+    info(f'FEEDING_SERVICE_UPLOAD_TOKEN = {FEEDING_SERVICE_UPLOAD_TOKEN}')
+info(f'FEEDING_SERVICE_MONITOR_INTERVAL = {FEEDING_SERVICE_MONITOR_INTERVAL}')
+info(f'FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO = {FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO}')
 
 try:
     with open(f'{TOKEN_DEPLOYMENTS_INFO}') as f:
@@ -468,10 +479,59 @@ def upload_coingecko_data_to_feeding_service(cg):
             return r
 
     bearer_auth=SimpleBearerAuth(FEEDING_SERVICE_UPLOAD_TOKEN)
-        
+
     r = requests.post(f'{FEEDING_SERVICE_URL}{FEEDING_SERVICE_PATH}', json=cg, auth=bearer_auth)
     if r.status_code != 200:
         error(f'Cannot upload CG data. Status code: {r.status_code}, error: {r.text}')
+
+monitor_feedback_counter = 0
+
+def monitor_feeding_service():
+    global monitor_feedback_counter
+    if monitor_feedback_counter > FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO:
+        info(f'Checking feeding service for data availability')
+        monitor_feedback_counter = 0
+    else:
+        monitor_feedback_counter += 1
+
+    try:
+        r = requests.get(f'{FEEDING_SERVICE_URL}{FEEDING_SERVICE_HEALTH_PATH}')
+    except IOError as e :
+        error(f'Cannot upload get feeding service health status: {e}')
+    except ValueError as e :
+        error(f'Cannot upload get feeding service health status: {e}')
+    else:
+        if r.status_code != 200:
+            error(f'Cannot upload CG data. Status code: {r.status_code}, error: {r.text}')
+        resp = r.json()
+        if resp['BobVault']['polygon']['status'] == 'error' and \
+            resp['BobVault']['polygon']['lastSuccessTimestamp'] == 0 and \
+            resp['BobVault']['polygon']['lastErrorTimestamp'] == 0:
+                warning(f'No data on the feeding service')
+                try:
+                    with open(f'{SNAPSHOT_DIR}/{COINGECKO_SNAPSHOT_FILE}', 'r') as json_file:
+                        cg = load(json_file)
+                except IOError:
+                    error(f'No snapshot {COINGECKO_SNAPSHOT_FILE} found')
+                else:
+                    info(f'Uploading data to feeding service')
+                    upload_coingecko_data_to_feeding_service(cg)
+
+# Taken from https://stackoverflow.com/questions/474528/what-is-the-best-way-to-repeatedly-execute-a-function-every-x-seconds/49801719#49801719
+def every(delay, task):
+    first_time = True
+    next_time = time() + delay
+    while True:
+        if not first_time:
+            sleep(max(0, next_time - time()))
+        else:
+            first_time = False
+        task()
+        next_time += (time() - next_time) // delay * delay + delay
+
+bg_task = threading.Thread(target=lambda: every(FEEDING_SERVICE_MONITOR_INTERVAL, monitor_feeding_service))
+bg_task.daemon = True
+bg_task.start()
 
 while True:
     try:
