@@ -55,6 +55,8 @@ ABI_KYBERSWAP_POOL = "abi/kyberswap_elastic_pool.json"
 ABI_ERC20 = "abi/erc20.json"
 
 TOKEN_DEPLOYMENTS_INFO = getenv('TOKEN_DEPLOYMENTS_INFO', 'token-deployments-info.json')
+SNAPSHOT_DIR = getenv('SNAPSHOT_DIR', '.')
+BOBVAULT_SNAPSHOT_FILE = getenv('BOBVAULT_SNAPSHOT_FILE', 'bobvault-snaphsot.json')
 BIGQUERY_AUTH_JSON_KEY = getenv('BIGQUERY_AUTH_JSON_KEY', 'bigquery-key.json')
 BIGQUERY_PROJECT = getenv('BIGQUERY_PROJECT', 'some-project')
 BIGQUERY_DATASET = getenv('BIGQUERY_DATASET', 'some-dashboard')
@@ -66,6 +68,8 @@ WEB3_RETRY_ATTEMPTS = int(getenv('WEB3_RETRY_ATTEMPTS', 2))
 WEB3_RETRY_DELAY = int(getenv('WEB3_RETRY_DELAY', 5))
 
 info(f'TOKEN_DEPLOYMENTS_INFO = {TOKEN_DEPLOYMENTS_INFO}')
+info(f'SNAPSHOT_DIR = {SNAPSHOT_DIR}')
+info(f'BOBVAULT_SNAPSHOT_FILE = {BOBVAULT_SNAPSHOT_FILE}')
 info(f'BIGQUERY_AUTH_JSON_KEY = {BIGQUERY_AUTH_JSON_KEY}')
 info(f'BIGQUERY_PROJECT = {BIGQUERY_PROJECT}')
 info(f'BIGQUERY_DATASET = {BIGQUERY_DATASET}')
@@ -115,6 +119,18 @@ for chainid in chains:
         w3_providers[chainid].middleware_onion.inject(geth_poa_middleware, layer=0)
     info(f'Web3 provider for "{chainid}" attached to "{url}"')
 
+def make_web3_call(func, *args, **kwargs):
+    attempts = 0
+    while attempts < WEB3_RETRY_ATTEMPTS:
+        try:
+            return func(*args, **kwargs)
+        except:
+            error(f'Not able to get data')
+        attempts += 1
+        info(f'Repeat attempt in {WEB3_RETRY_DELAY} seconds')
+        sleep(WEB3_RETRY_DELAY)
+    raise BaseException(f'Cannot make web3 call')
+
 rpc_response_cache = {}
 
 def get_token_decimals(_token):
@@ -125,7 +141,10 @@ def get_token_decimals(_token):
     if not endpoint in rpc_response_cache['decimals']:
         rpc_response_cache['decimals'][endpoint] = {}
     if not _token.address in rpc_response_cache['decimals'][endpoint]:
-        rpc_response_cache['decimals'][endpoint][_token.address] = _token.functions.decimals().call()
+        info(f'Getting decimals for {_token.address} to cache')
+        resp = make_web3_call(_token.functions.decimals().call)
+        info(f'Decimals {resp}')
+        rpc_response_cache['decimals'][endpoint][_token.address] = resp
     return rpc_response_cache['decimals'][endpoint][_token.address]
 
 def get_token_symbol(_token):
@@ -136,209 +155,227 @@ def get_token_symbol(_token):
     if not endpoint in rpc_response_cache['symbols']:
         rpc_response_cache['symbols'][endpoint] = {}
     if not _token.address in rpc_response_cache['symbols'][endpoint]:
-        rpc_response_cache['symbols'][endpoint][_token.address] = _token.functions.symbol().call()
+        info(f'Getting symbol for {_token.address} to cache')
+        resp = make_web3_call(_token.functions.symbol().call)
+        info(f'Symbol {resp}')
+        rpc_response_cache['symbols'][endpoint][_token.address] = resp
     return rpc_response_cache['symbols'][endpoint][_token.address]
 
-def getForUniswapPairs(_w3, _pm_addr, _io_addr):
+def getForUniswapPairs(_w3, params):
+    pm_addr = Web3.toChecksumAddress(params['pos_manager'])
+    io_addr = Web3.toChecksumAddress(params['owner'])
     pairs = {}
     
-    info(f'Getting UniSwapV3 positions for {_io_addr} on {_w3.provider.endpoint_uri}')
-    position_manager = _w3.eth.contract(abi = uniV3_abi, address = _pm_addr)
+    info(f'Getting UniSwapV3 positions for {io_addr} on {_w3.provider.endpoint_uri}')
+    position_manager = _w3.eth.contract(abi = uniV3_abi, address = pm_addr)
     
-    attempts = 0
-    while attempts < WEB3_RETRY_ATTEMPTS:
-        try:    
-            pos_num = position_manager.functions.balanceOf(_io_addr).call()
+    try:    
+        pos_num = make_web3_call(position_manager.functions.balanceOf(io_addr).call)
 
-            info(f'Found {pos_num} positions')
+        info(f'Found {pos_num} positions')
 
-            for i in range(pos_num):
-                pos_id = position_manager.functions.tokenOfOwnerByIndex(_io_addr, i).call()
+        for i in range(pos_num):
+            pos_id = make_web3_call(position_manager.functions.tokenOfOwnerByIndex(io_addr, i).call)
 
-                info(f'Handling position {pos_id}')
+            info(f'Handling position {pos_id}')
 
-                position_details = position_manager.functions.positions(pos_id).call()
-                position_details = dict(zip(univ3_positions_fields, position_details))
+            position_details = make_web3_call(position_manager.functions.positions(pos_id).call)
+            position_details = dict(zip(univ3_positions_fields, position_details))
 
-                token0_addr = position_details['token0']
-                token1_addr = position_details['token1']
-                pos_liquidity = position_details['liquidity']
-                info(f'pair: {token0_addr}/{token1_addr}, liquidity {pos_liquidity}')
-                debug(f'{position_details}')
+            token0_addr = position_details['token0']
+            token1_addr = position_details['token1']
+            pos_liquidity = position_details['liquidity']
+            info(f'pair: {token0_addr}/{token1_addr}, liquidity {pos_liquidity}')
+            debug(f'{position_details}')
 
-                if pos_liquidity == 0:
-                    continue
+            if pos_liquidity == 0:
+                continue
 
-                params = {"tokenId": pos_id,
-                      "liquidity": pos_liquidity,
-                      "amount0Min": 0,
-                      "amount1Min": 0,
-                      "deadline": int(time())+ ONE_DAY
-                     }
-                tvl_pair = position_manager.functions.decreaseLiquidity(params).call()
+            params = {"tokenId": pos_id,
+                    "liquidity": pos_liquidity,
+                    "amount0Min": 0,
+                    "amount1Min": 0,
+                    "deadline": int(time())+ ONE_DAY
+                    }
+            tvl_pair = make_web3_call(position_manager.functions.decreaseLiquidity(params).call)
 
-                info(f'tvl: {tvl_pair}')
+            info(f'tvl: {tvl_pair}')
 
-                params = {"tokenId": pos_id,
-                  "recipient": _io_addr,
-                  "amount0Max": MAX_INT,
-                  "amount1Max": MAX_INT
-                 }
-                fees_pair = position_manager.functions.collect(params).call()
+            params = {"tokenId": pos_id,
+                "recipient": io_addr,
+                "amount0Max": MAX_INT,
+                "amount1Max": MAX_INT
+                }
+            fees_pair = make_web3_call(position_manager.functions.collect(params).call)
 
-                info(f'fees: {fees_pair}')
+            info(f'fees: {fees_pair}')
 
-                pair = {}
-                if token0_addr == BOB_TOKEN_ADDRESS:
-                    token0 = _w3.eth.contract(abi = erc20_abi, address = token0_addr)
-                    token0_decimals = get_token_decimals(token0)
-                    pair['token0'] = {'symbol': BOB_TOKEN_SYMBOL,
-                                      'tvl': tvl_pair[0] / (10 ** token0_decimals),
-                                      'fees': fees_pair[0] / (10 ** token0_decimals)
-                                     }
+            pair = {}
+            if token0_addr == BOB_TOKEN_ADDRESS:
+                token0 = _w3.eth.contract(abi = erc20_abi, address = token0_addr)
+                token0_decimals = get_token_decimals(token0)
+                pair['token0'] = {'symbol': BOB_TOKEN_SYMBOL,
+                                    'tvl': tvl_pair[0] / (10 ** token0_decimals),
+                                    'fees': fees_pair[0] / (10 ** token0_decimals)
+                                    }
 
-                    token1 = _w3.eth.contract(abi = erc20_abi, address = token1_addr)
-                    token1_decimals = get_token_decimals(token1)
-                    pair['token1'] = {'symbol': get_token_symbol(token1),
-                                      'tvl': tvl_pair[1] / (10 ** token1_decimals),
-                                      'fees': fees_pair[1] / (10 ** token1_decimals)
-                                     }
-                else:
-                    token0 = _w3.eth.contract(abi = erc20_abi, address = token0_addr)
-                    token0_decimals = get_token_decimals(token0)
-                    pair['token0'] = {'symbol': get_token_symbol(token0),
-                                      'tvl': tvl_pair[0] / (10 ** token0_decimals),
-                                      'fees': fees_pair[0] / (10 ** token0_decimals)
-                                     }
+                token1 = _w3.eth.contract(abi = erc20_abi, address = token1_addr)
+                token1_decimals = get_token_decimals(token1)
+                pair['token1'] = {'symbol': get_token_symbol(token1),
+                                    'tvl': tvl_pair[1] / (10 ** token1_decimals),
+                                    'fees': fees_pair[1] / (10 ** token1_decimals)
+                                    }
+            else:
+                token0 = _w3.eth.contract(abi = erc20_abi, address = token0_addr)
+                token0_decimals = get_token_decimals(token0)
+                pair['token0'] = {'symbol': get_token_symbol(token0),
+                                    'tvl': tvl_pair[0] / (10 ** token0_decimals),
+                                    'fees': fees_pair[0] / (10 ** token0_decimals)
+                                    }
 
-                    token1 = _w3.eth.contract(abi = erc20_abi, address = token1_addr)
-                    token1_decimals = get_token_decimals(token1)
-                    pair['token1'] = {'symbol': BOB_TOKEN_SYMBOL,
-                                      'tvl': tvl_pair[1] / (10 ** token1_decimals),
-                                      'fees': fees_pair[1] / (10 ** token1_decimals)
-                                     }
+                token1 = _w3.eth.contract(abi = erc20_abi, address = token1_addr)
+                token1_decimals = get_token_decimals(token1)
+                pair['token1'] = {'symbol': BOB_TOKEN_SYMBOL,
+                                    'tvl': tvl_pair[1] / (10 ** token1_decimals),
+                                    'fees': fees_pair[1] / (10 ** token1_decimals)
+                                    }
 
-                pairs[f"{pair['token0']['symbol']}/{pair['token1']['symbol']}({position_details['fee']/10000})"] = pair
-            break
-        except:
-            error(f'Not able to get data')
-
-        attempts += 1
-        info(f'Repeat attempt in {WEB3_RETRY_DELAY} seconds')
-        sleep(WEB3_RETRY_DELAY)
+            pairs[f"{pair['token0']['symbol']}/{pair['token1']['symbol']}({position_details['fee']/10000})"] = pair
+    except:
+        error(f'Not able to get data')
 
     return pairs
 
-def getForKyberSwapPairs(_w3, _pm_addr, _io_addr):
+def getForKyberSwapPairs(_w3, params):
+    pm_addr = Web3.toChecksumAddress(params['pos_manager'])
+    io_addr = Web3.toChecksumAddress(params['owner'])
     pairs = {}
 
-    info(f'Getting KyberSwap Elastic positions for {_io_addr} on {_w3.provider.endpoint_uri}')
-    position_manager = _w3.eth.contract(abi = kyberswap_abi, address = _pm_addr)
+    info(f'Getting KyberSwap Elastic positions for {io_addr} on {_w3.provider.endpoint_uri}')
+    position_manager = _w3.eth.contract(abi = kyberswap_abi, address = pm_addr)
 
-    attempts = 0
-    while attempts < WEB3_RETRY_ATTEMPTS:
-        try:    
-            pos_num = position_manager.functions.balanceOf(_io_addr).call()
+    try:    
+        pos_num = make_web3_call(position_manager.functions.balanceOf(io_addr).call)
 
-            info(f'Found {pos_num} positions')
+        info(f'Found {pos_num} positions')
 
-            for i in range(pos_num):
-                pos_id = position_manager.functions.tokenOfOwnerByIndex(_io_addr, i).call()
+        for i in range(pos_num):
+            pos_id = make_web3_call(position_manager.functions.tokenOfOwnerByIndex(io_addr, i).call)
 
-                info(f'Handling position {pos_id}')
+            info(f'Handling position {pos_id}')
 
-                position_details = position_manager.functions.positions(pos_id).call()
-                tmp_position_details = dict(zip(kyberswap_positions_fields_pos, position_details[0]))
-                tmp_position_details.update(dict(zip(kyberswap_positions_fields_info, position_details[1])))
-                position_details = tmp_position_details
+            position_details = make_web3_call(position_manager.functions.positions(pos_id).call)
+            tmp_position_details = dict(zip(kyberswap_positions_fields_pos, position_details[0]))
+            tmp_position_details.update(dict(zip(kyberswap_positions_fields_info, position_details[1])))
+            position_details = tmp_position_details
 
-                token0_addr = position_details['token0']
-                token1_addr = position_details['token1']
-                pos_liquidity = position_details['liquidity']
-                info(f'pair: {token0_addr}/{token1_addr}, liquidity {pos_liquidity}')
-                debug(f'{position_details}')
+            token0_addr = position_details['token0']
+            token1_addr = position_details['token1']
+            pos_liquidity = position_details['liquidity']
+            info(f'pair: {token0_addr}/{token1_addr}, liquidity {pos_liquidity}')
+            debug(f'{position_details}')
 
-                if pos_liquidity == 0:
-                    continue
+            if pos_liquidity == 0:
+                continue
 
-                params = {"tokenId": pos_id,
-                      "liquidity": pos_liquidity,
-                      "amount0Min": 0,
-                      "amount1Min": 0,
-                      "deadline": int(time())+ ONE_DAY
-                     }
-                tvl_pair = position_manager.functions.removeLiquidity(params).call()
+            params = {"tokenId": pos_id,
+                    "liquidity": pos_liquidity,
+                    "amount0Min": 0,
+                    "amount1Min": 0,
+                    "deadline": int(time())+ ONE_DAY
+                    }
+            tvl_pair = make_web3_call(position_manager.functions.removeLiquidity(params).call)
 
-                info(f'tvl: {tvl_pair}')
+            info(f'tvl: {tvl_pair}')
 
-                # This approach cannot be used since removeLiquidity does not change state actually
-                # to update the position's rTokenOwed, so burnRTokens fails with 'no tokens to burn' 
-                # params = {"tokenId": pos_id,
-                #   "amount0Min": MAX_INT,
-                #   "amount1Min": MAX_INT,
-                #   "deadline": int(time())+ ONE_DAY
-                #  }
-                # fees_pair = position_manager.functions.burnRTokens(params).call()
+            # This approach cannot be used since removeLiquidity does not change state actually
+            # to update the position's rTokenOwed, so burnRTokens fails with 'no tokens to burn' 
+            # params = {"tokenId": pos_id,
+            #   "amount0Min": MAX_INT,
+            #   "amount1Min": MAX_INT,
+            #   "deadline": int(time())+ ONE_DAY
+            #  }
+            # fees_pair = position_manager.functions.burnRTokens(params).call()
 
-                pool_fee = position_details['fee']
+            pool_fee = position_details['fee']
 
-                factory_addr = position_manager.functions.factory().call()
-                factory = _w3.eth.contract(abi = kyberswap_factory_abi, address = factory_addr)
-                pool_addr = factory.functions.getPool(token0_addr, token1_addr, pool_fee).call()
-                pool = _w3.eth.contract(abi = kyberswap_pool_abi, address = pool_addr)
+            factory_addr = make_web3_call(position_manager.functions.factory().call)
+            factory = _w3.eth.contract(abi = kyberswap_factory_abi, address = factory_addr)
+            pool_addr = make_web3_call(factory.functions.getPool(token0_addr, token1_addr, pool_fee).call)
+            pool = _w3.eth.contract(abi = kyberswap_pool_abi, address = pool_addr)
 
-                sqrtPrice = pool.functions.getPoolState().call()[0]
-                reinvestTokens = position_details['rTokenOwed'] + tvl_pair[2]
-                # Naive approach to calculate fees. It must be verified and tuned later when delta
-                # between actual fees and values below become obvious
-                fees_pair = [ reinvestTokens * (TWO_POW_96 / sqrtPrice) * (TWO_POW_96 / sqrtPrice),
-                              reinvestTokens * (sqrtPrice / TWO_POW_96) * (sqrtPrice / TWO_POW_96)
-                            ]    
-                info(f'fees: {fees_pair}')
+            sqrtPrice = make_web3_call(pool.functions.getPoolState().call)[0]
+            reinvestTokens = position_details['rTokenOwed'] + tvl_pair[2]
+            # Naive approach to calculate fees. It must be verified and tuned later when delta
+            # between actual fees and values below become obvious
+            fees_pair = [ reinvestTokens * (TWO_POW_96 / sqrtPrice) * (TWO_POW_96 / sqrtPrice),
+                            reinvestTokens * (sqrtPrice / TWO_POW_96) * (sqrtPrice / TWO_POW_96)
+                        ]    
+            info(f'fees: {fees_pair}')
 
-                pair = {}
-                if token0_addr == BOB_TOKEN_ADDRESS:
-                    token0 = _w3.eth.contract(abi = erc20_abi, address = token0_addr)
-                    token0_decimals = get_token_decimals(token0)
-                    pair['token0'] = {'symbol': BOB_TOKEN_SYMBOL,
-                                      'tvl': tvl_pair[0] / (10 ** token0_decimals),
-                                      'fees': fees_pair[0] / (10 ** token0_decimals)
-                                     }
+            pair = {}
+            if token0_addr == BOB_TOKEN_ADDRESS:
+                token0 = _w3.eth.contract(abi = erc20_abi, address = token0_addr)
+                token0_decimals = get_token_decimals(token0)
+                pair['token0'] = {'symbol': BOB_TOKEN_SYMBOL,
+                                    'tvl': tvl_pair[0] / (10 ** token0_decimals),
+                                    'fees': fees_pair[0] / (10 ** token0_decimals)
+                                    }
 
-                    token1 = _w3.eth.contract(abi = erc20_abi, address = token1_addr)
-                    token1_decimals = get_token_decimals(token1)
-                    pair['token1'] = {'symbol': get_token_symbol(token1),
-                                      'tvl': tvl_pair[1] / (10 ** token1_decimals),
-                                      'fees': fees_pair[1] / (10 ** token1_decimals)
-                                     }
-                else:
-                    token0 = _w3.eth.contract(abi = erc20_abi, address = token0_addr)
-                    token0_decimals = get_token_decimals(token0)
-                    pair['token0'] = {'symbol': get_token_symbol(token0),
-                                      'tvl': tvl_pair[0] / (10 ** token0_decimals),
-                                      'fees': fees_pair[0] / (10 ** token0_decimals)
-                                     }
+                token1 = _w3.eth.contract(abi = erc20_abi, address = token1_addr)
+                token1_decimals = get_token_decimals(token1)
+                pair['token1'] = {'symbol': get_token_symbol(token1),
+                                    'tvl': tvl_pair[1] / (10 ** token1_decimals),
+                                    'fees': fees_pair[1] / (10 ** token1_decimals)
+                                    }
+            else:
+                token0 = _w3.eth.contract(abi = erc20_abi, address = token0_addr)
+                token0_decimals = get_token_decimals(token0)
+                pair['token0'] = {'symbol': get_token_symbol(token0),
+                                    'tvl': tvl_pair[0] / (10 ** token0_decimals),
+                                    'fees': fees_pair[0] / (10 ** token0_decimals)
+                                    }
 
-                    token1 = _w3.eth.contract(abi = erc20_abi, address = token1_addr)
-                    token1_decimals = get_token_decimals(token1)
-                    pair['token1'] = {'symbol': BOB_TOKEN_SYMBOL,
-                                      'tvl': tvl_pair[1] / (10 ** token1_decimals),
-                                      'fees': fees_pair[1] / (10 ** token1_decimals)
-                                     }
+                token1 = _w3.eth.contract(abi = erc20_abi, address = token1_addr)
+                token1_decimals = get_token_decimals(token1)
+                pair['token1'] = {'symbol': BOB_TOKEN_SYMBOL,
+                                    'tvl': tvl_pair[1] / (10 ** token1_decimals),
+                                    'fees': fees_pair[1] / (10 ** token1_decimals)
+                                    }
 
-                pairs[f"{pair['token0']['symbol']}/{pair['token1']['symbol']}({pool_fee/1000})"] = pair
-            break
-        except:
-            error(f'Not able to get data')
+            pairs[f"{pair['token0']['symbol']}/{pair['token1']['symbol']}({pool_fee/1000})"] = pair
+    except:
+        error(f'Not able to get data')
 
-        attempts += 1
-        info(f'Repeat attempt in {WEB3_RETRY_DELAY} seconds')
-        sleep(WEB3_RETRY_DELAY)
-                
     return pairs
+
+def getInventoryForBobVault(_w3, params):
+    bv_addr = Web3.toChecksumAddress(params['address'])
+    bobstat = {}
+
+    info(f'Getting BobVault info on {_w3.provider.endpoint_uri}')
+
+    bobtoken = _w3.eth.contract(abi = erc20_abi, address = BOB_TOKEN_ADDRESS)
+    try:
+        bob_decimals = get_token_decimals(bobtoken)
+        tvl = make_web3_call(bobtoken.functions.balanceOf(bv_addr).call)
+    except: 
+        error(f'Not able to get data')
+    else:
+        info(f'tvl: {tvl}')
+        bobstat['BOB_on_BobVault'] = {'bob':
+            {
+             'symbol': BOB_TOKEN_SYMBOL,
+             'tvl': tvl / (10 ** bob_decimals),
+             'fees': 0
+            }
+        }
+
+    return bobstat
 
 inventory_protocols = {'UniswapV3': getForUniswapPairs,
-                       'KyberSwap Elastic': getForKyberSwapPairs
+                       'KyberSwap Elastic': getForKyberSwapPairs,
+                       'BobVault': getInventoryForBobVault,
                       }
 
 def getTotalSupply(_w3):
@@ -349,17 +386,11 @@ def getTotalSupply(_w3):
     token_decimals = get_token_decimals(token)
 
     attempts = 0
-    while attempts < WEB3_RETRY_ATTEMPTS:
-        try:
-            token_TS = token.functions.totalSupply().call() / (10 ** token_decimals)
-            info(f'total supply: {token_TS}')
-            break
-        except:
-            error(f'Not able to call totalSupply()')
-
-        attempts += 1
-        info(f'Repeat attempt in {WEB3_RETRY_DELAY} seconds')
-        sleep(WEB3_RETRY_DELAY)
+    try:
+        token_TS = make_web3_call(token.functions.totalSupply().call) / (10 ** token_decimals)
+        info(f'total supply: {token_TS}')
+    except:
+        error(f'Not able to call totalSupply()')
 
     return token_TS
 
@@ -406,34 +437,57 @@ def getVolumeFromCoinGecko():
                 
     return chains
 
-def getStatsForPairs(_pairs, _ts, _vol):
-    unused_supply = 0
-    total_supply = 0
-    fees = {}
-    volume = 0
-    for chain in _pairs:
-        if chain in _ts:
-            for pair in _pairs[chain]:
-                for token in _pairs[chain][pair]:
-                    t_symbol = _pairs[chain][pair][token]['symbol']
-                    t_fees = _pairs[chain][pair][token]['fees']
-                    if t_symbol == BOB_TOKEN_SYMBOL:
-                        unused_supply += _pairs[chain][pair][token]['tvl']
-                    if t_symbol in fees:
-                        fees[t_symbol] += t_fees
-                    else:
-                        fees[t_symbol] = t_fees
-            total_supply += _ts[chain]
-            if chain in _vol:
-                volume += _vol[chain]
+def get_bobvault_volume_for_timeframe(logs, ts_start, ts_end):
+    info(f'Getting volume between {ts_start} and {ts_end}')
+    logs_len = len(logs)
+    prev_indices = [-1, logs_len]
+    first_index = sum(prev_indices) // 2
+    no_error = True
+    while no_error:
+        debug(f'binary search: {prev_indices} - {first_index}')
+        if (logs[first_index]['timestamp'] >= ts_start):
+            if (first_index == 0) or (logs[first_index-1]['timestamp'] < ts_start):
+                break
+            else:
+                prev_indices[1] = first_index
+                first_index = sum(prev_indices) // 2
         else:
-            error(f"Chain '{chain}' no found total supply map")
+            prev_indices[0] = first_index
+            first_index = sum(prev_indices) // 2
+        if prev_indices[0] == logs_len - 1:
+            no_error = False
+    volume_tf = 0.0
+    if not no_error:
+        info("No events for last required time frame")
+    else:
+        for trade in logs[first_index:]:
+            if trade['timestamp'] < ts_end:
+                if trade['args']['inToken'] == BOB_TOKEN_ADDRESS:
+                    trade_volume = trade['args']['amountIn']
+                elif trade['args']['outToken'] == BOB_TOKEN_ADDRESS:
+                    trade_volume = trade['args']['amountOut']
+                else:
+                    info(f'Swap operations skipped')
+                    trade_volume = 0
+                volume_tf += trade_volume
+            else:
+                break
+    return volume_tf
 
-    return {'totalSupply': total_supply,
-            'colCirculatingSupply': total_supply - unused_supply,
-            'volumeUSD': volume,
-            'fees': fees
-           }
+def get_bobvault_volume_24h():
+    vol = 0.0
+    try:
+        with open(f'{SNAPSHOT_DIR}/{BOBVAULT_SNAPSHOT_FILE}', 'r') as json_file:
+            snapshot = load(json_file)
+    except IOError:
+        error(f'No snapshot {BOBVAULT_SNAPSHOT_FILE} found')
+    else:
+        info(f'Collecting 24h volume from bobvault snapshot')
+        now = int(time())
+        now_minus_24h = now - ONE_DAY
+        vol = get_bobvault_volume_for_timeframe(snapshot['logs'], now_minus_24h, now)
+        info(f'Discovered volume: {vol}')
+    return {'pol': vol}
 
 def generateStatsForChains(_pairs, _ts, _vol, _time = None):
     if not _time:
@@ -442,10 +496,27 @@ def generateStatsForChains(_pairs, _ts, _vol, _time = None):
     dat = []
     for c in chain_names:
         if (c in _pairs) and (c in _ts):
-            if not c in _vol:
-                d = getStatsForPairs({c: _pairs[c]}, {c: _ts[c]}, {c: 0})
-            else:
-                d = getStatsForPairs({c: _pairs[c]}, {c: _ts[c]}, {c: _vol[c]})
+
+            unused_supply = 0
+            fees = {}
+            for pair in _pairs[c]:
+                for token in _pairs[c][pair]:
+                    t_symbol = _pairs[c][pair][token]['symbol']
+                    t_fees = _pairs[c][pair][token]['fees']
+                    if t_symbol == BOB_TOKEN_SYMBOL:
+                        unused_supply += _pairs[c][pair][token]['tvl']
+                    if t_symbol in fees:
+                        fees[t_symbol] += t_fees
+                    else:
+                        fees[t_symbol] = t_fees
+            d = {'totalSupply': _ts[c],
+                 'colCirculatingSupply': _ts[c] - unused_supply,
+                 'fees': fees
+                }
+
+            d['volumeUSD'] = 0
+            if c in _vol:
+                d['volumeUSD'] = _vol[c]
             d['chain'] = chain_names[c]
             d['dt'] = _time
             info(f'Stats for chain {d}')
@@ -465,21 +536,28 @@ while True:
     pairs = {}
     for chain in chains:
         w3 = w3_providers[chain]
+        pairs[chain] = {}
         for inventory in chains[chain]['inventories']:
-            pm = Web3.toChecksumAddress(inventory['pos_manager'])
-            owner = Web3.toChecksumAddress(inventory['owner'])
             if inventory['protocol'] in inventory_protocols:
-                pairs[chain] = inventory_protocols[inventory['protocol']](w3, pm, owner)
-                if len(pairs[chain]) == 0:
+                poi = inventory_protocols[inventory['protocol']](w3, inventory)
+                if len(poi) == 0:
                     error(f'Error happens during inventory discover. Interrupt measurements for the next time')
                     continue
+                pairs[chain].update(poi)
             else:
                 error(f'Handler for {inventory["protocol"]} not found')
+    info(f'{pairs}')
 
     volume = getVolumeFromCoinGecko()
     if len(volume) == 0:
         error(f'Error happens during volume data collecting. Interrupt measurements for the next time')
         continue
+    bv_volume = get_bobvault_volume_24h()
+    for chain in bv_volume:
+        if not chain in volume:
+            volume[chain] = 0
+        volume[chain] += bv_volume[chain]
+    info(f'{volume}')
     
     stats = generateStatsForChains(pairs, totalSupply, volume)
     if len(stats) == len(chains):

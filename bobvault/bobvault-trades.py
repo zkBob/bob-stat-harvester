@@ -74,7 +74,7 @@ try:
     with open(f'{TOKEN_DEPLOYMENTS_INFO}') as f:
         chains = load(f)['chains']
 except IOError:
-    raise BaseException(f'Cannot get {BOB_TOKEN_SYMBOL} deployment info')
+    raise BaseException(f'Cannot get BOB token deployment info')
     
 if 'vault' in chains['pol']:
     start_block = chains['pol']['vault']['start_block'] # 36750276
