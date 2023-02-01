@@ -26,6 +26,10 @@
           "protocol":"UniswapV3",
           "pos_manager":"0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
           "owner":"0xd4a3D9Ca00fa1fD8833D560F9217458E61c446d8"
+        },
+        {
+          "protocol":"BobVault",
+          "address":"0x25e6505297b44f4817538fb2d91b88e1cf841b54"
         }
       ],
       "token":{
