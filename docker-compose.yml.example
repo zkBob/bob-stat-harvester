@@ -1,20 +1,41 @@
 version: "3.9"
 
 services:
-  faucet:
+  main-crawler:
     image: ghcr.io/zkbob/bob-stat-to-bigquery:${RELAYER_IMAGE:-latest}
-    container_name: bob-stat
+    container_name: main-crawler
     environment:
         - BIGQUERY_PROJECT=some-project
         - BIGQUERY_DATASET=some-dataset
         - BIGQUERY_TABLE=some-table
         - MEASUREMENTS_INTERVAL=7170
+        - SNAPSHOT_DIR=snapshots
     volumes:
         - ./token-deployments-info.json:/app/token-deployments-info.json
         - ./bigquery-key.json:/app/bigquery-key.json
+        - ./snapshots:/app/snapshots
     restart: unless-stopped
     logging:
         driver: "json-file"
         options:
-            max-size: "100m"
+            max-size: "10m"
+            max-file: "1"
+  bobvault-crawler:
+    image: ghcr.io/zkbob/bobvault-trades-collector:${RELAYER_IMAGE:-latest}
+    container_name: bobvault-crawler
+    environment:
+        - MEASUREMENTS_INTERVAL=900
+        - SNAPSHOT_DIR=snapshots
+        - FEEDING_SERVICE_URL=https://where.bob-circulating-supply.deployed
+        - FEEDING_SERVICE_PATH=/coingecko/bobvault/polygon/upload
+        - FEEDING_SERVICE_HEALTH_PATH=/health
+        - FEEDING_SERVICE_UPLOAD_TOKEN=@uth70ken
+    volumes:
+        - ./token-deployments-info.json:/app/token-deployments-info.json
+        - ./snapshots:/app/snapshots
+    restart: unless-stopped
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "10m"
             max-file: "1"

@@ -8,9 +8,9 @@ The sources for the stats:
 |      |      |
 |:----:|:----:|
 | total supply | BOB contract |
-| collateralised circulated supply | pools on Uniswap V3 and KyberSwap Elastic |
+| collateralised circulated supply | BobVault + pools on Uniswap V3 and KyberSwap Elastic |
 | trading fees | pools on Uniswap V3 and KyberSwap Elastic |
-| trading bolume | CoinGecko API |
+| trading bolume | BobVault and CoinGecko API |
 
 ## Configure and run the service
 
@@ -25,6 +25,11 @@ It assumes that the corresponding BigQuery project was created and an access key
     - `BIGQUERY_DATASET`
     - `BIGQUERY_TABLE`
     - `MEASUREMENTS_INTERVAL`
+    - `SNAPSHOTS`
+    - `FEEDING_SERVICE_URL`
+    - `FEEDING_SERVICE_PATH`
+    - `FEEDING_SERVICE_HEALTH_PATH`
+    - `FEEDING_SERVICE_UPLOAD_TOKEN`
 
 4. Update the origin path to the bigquery access key in `volumes` section of `docker-compose.yml`.
 
