@@ -1,9 +1,9 @@
 version: "3.9"
 
 services:
-  main-crawler:
-    image: ghcr.io/zkbob/bob-stat-to-bigquery:${RELAYER_IMAGE:-latest}
-    container_name: main-crawler
+  main-harvester:
+    image: ghcr.io/zkbob/bob-stat-harvester:${RELAYER_IMAGE:-latest}
+    container_name: main-harvester
     environment:
         - BIGQUERY_PROJECT=some-project
         - BIGQUERY_DATASET=some-dataset
@@ -26,9 +26,9 @@ services:
         options:
             max-size: "10m"
             max-file: "1"
-  bobvault-crawler:
+  bobvault-harvester:
     image: ghcr.io/zkbob/bobvault-trades-collector:${RELAYER_IMAGE:-latest}
-    container_name: bobvault-crawler
+    container_name: bobvault-harvester
     environment:
         - MEASUREMENTS_INTERVAL=900
         - SNAPSHOT_DIR=snapshots

@@ -1,7 +1,7 @@
-BOB tokans statistics crawler
+BOB tokans statistics harvester
 ====
 
-This service on regualar basis sends requests to blockchains and CoinGecko API to collect BOB token stats on different chain and publish it in Google BigQuery.
+This service on regualar basis sends requests to blockchains and CoinGecko API to collect BOB token stats on different chain, keeps it in a local timeseries database and publishes the stats. The service supports the Google BigQuery DB and [the BOB token stats server](https://github.com/zkBob/bob-circulating-supply) for publishing the data.
 
 The sources for the stats:
 

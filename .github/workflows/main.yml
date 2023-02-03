@@ -7,7 +7,7 @@ env:
   DOCKER_REGISTRY: ghcr.io
   DOCKER_USERNAME: ${{ github.actor }}
   DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-  CRAWLER_IMAGE_NAME: ghcr.io/zkbob/bob-stat-to-bigquery
+  CRAWLER_IMAGE_NAME: ghcr.io/zkbob/bob-stat-harvester
   BVTC_IMAGE_NAME: ghcr.io/zkbob/bobvault-trades-collector
 
 jobs:
