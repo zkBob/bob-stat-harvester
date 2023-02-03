@@ -25,7 +25,8 @@ It assumes that the corresponding BigQuery project was created and an access key
     - `BIGQUERY_DATASET`
     - `BIGQUERY_TABLE`
     - `MEASUREMENTS_INTERVAL`
-    - `SNAPSHOTS`
+    - `SNAPSHOT_DIR`
+    - `TSDB_DIR`
     - `FEEDING_SERVICE_URL`
     - `FEEDING_SERVICE_PATH`
     - `FEEDING_SERVICE_HEALTH_PATH`
