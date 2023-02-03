@@ -515,8 +515,13 @@ def monitor_feeding_service():
                     error(f'No snapshot {COINGECKO_SNAPSHOT_FILE} found')
                 else:
                     info(f'Uploading data to feeding service')
-                    upload_coingecko_data_to_feeding_service(cg)
-
+                    try: 
+                        upload_coingecko_data_to_feeding_service(cg)
+                    except:
+                        error(f'Something wrong with uploading data to feeding service. Plan update for the next time')
+                    else:
+                        info(f'Data uploaded to feeding service successfully')
+            
 # Taken from https://stackoverflow.com/questions/474528/what-is-the-best-way-to-repeatedly-execute-a-function-every-x-seconds/49801719#49801719
 def every(delay, task):
     first_time = True
@@ -575,7 +580,12 @@ while True:
     with open(f'{SNAPSHOT_DIR}/{COINGECKO_SNAPSHOT_FILE}', 'w') as json_file:
         dump(cg, json_file)
     info(f'Uploading data to feeding service')
-    upload_coingecko_data_to_feeding_service(cg)
+    try: 
+        upload_coingecko_data_to_feeding_service(cg)
+    except:
+        error(f'Something wrong with uploading data to feeding service. Plan update for the next time')
+    else:
+        info(f'Data uploaded to feeding service successfully')
     
     reset_cache_for_collateral_info()
     reset_cache_for_bob_balance()

@@ -7,10 +7,14 @@ from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 
 import requests
+from requests.auth import AuthBase
 
 from time import time, sleep, strptime, mktime, gmtime, strftime
+from datetime import datetime
 
 from json import load, dump
+
+from tinyflux import TinyFlux, Point, TimeQuery
 
 import pandas as pd
 
@@ -57,6 +61,7 @@ ABI_ERC20 = "abi/erc20.json"
 TOKEN_DEPLOYMENTS_INFO = getenv('TOKEN_DEPLOYMENTS_INFO', 'token-deployments-info.json')
 SNAPSHOT_DIR = getenv('SNAPSHOT_DIR', '.')
 BOBVAULT_SNAPSHOT_FILE = getenv('BOBVAULT_SNAPSHOT_FILE', 'bobvault-snaphsot.json')
+UPDATE_BIGQUERY = getenv('UPDATE_BIGQUERY', 'true')
 BIGQUERY_AUTH_JSON_KEY = getenv('BIGQUERY_AUTH_JSON_KEY', 'bigquery-key.json')
 BIGQUERY_PROJECT = getenv('BIGQUERY_PROJECT', 'some-project')
 BIGQUERY_DATASET = getenv('BIGQUERY_DATASET', 'some-dashboard')
@@ -66,10 +71,25 @@ COINGECKO_RETRY_ATTEMPTS = int(getenv('COINGECKO_RETRY_ATTEMPTS', 2))
 COINGECKO_RETRY_DELAY = int(getenv('COINGECKO_RETRY_DELAY', 5))
 WEB3_RETRY_ATTEMPTS = int(getenv('WEB3_RETRY_ATTEMPTS', 2))
 WEB3_RETRY_DELAY = int(getenv('WEB3_RETRY_DELAY', 5))
+TSDB_DIR = getenv('TSDB_DIR', '.')
+BOB_COMPOSED_STAT_DB = getenv('BOB_COMPOSED_STAT_DB', 'bobstat_composed.csv')
+BOB_COMPOSED_FEES_STAT_DB = getenv('BOB_COMPOSED_FEES_STAT_DB', 'bobstat_comp_fees.csv')
+FEEDING_SERVICE_URL = getenv('FEEDING_SERVICE_URL', 'http://127.0.0.1:8080')
+FEEDING_SERVICE_PATH = getenv('FEEDING_SERVICE_PATH', '/')
+FEEDING_SERVICE_HEALTH_PATH = getenv('FEEDING_SERVICE_HEALTH_PATH', '/health')
+FEEDING_SERVICE_UPLOAD_TOKEN = getenv('FEEDING_SERVICE_UPLOAD_TOKEN', 'default')
+FEEDING_SERVICE_MONITOR_INTERVAL = int(getenv('FEEDING_SERVICE_MONITOR_INTERVAL', 60))
+FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO = int(getenv('FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO', 60))
+
+if UPDATE_BIGQUERY == 'true' or UPDATE_BIGQUERY == 'True':
+    UPDATE_BIGQUERY = True
+else:
+    UPDATE_BIGQUERY = False
 
 info(f'TOKEN_DEPLOYMENTS_INFO = {TOKEN_DEPLOYMENTS_INFO}')
 info(f'SNAPSHOT_DIR = {SNAPSHOT_DIR}')
 info(f'BOBVAULT_SNAPSHOT_FILE = {BOBVAULT_SNAPSHOT_FILE}')
+info(f'UPDATE_BIGQUERY = {UPDATE_BIGQUERY}')
 info(f'BIGQUERY_AUTH_JSON_KEY = {BIGQUERY_AUTH_JSON_KEY}')
 info(f'BIGQUERY_PROJECT = {BIGQUERY_PROJECT}')
 info(f'BIGQUERY_DATASET = {BIGQUERY_DATASET}')
@@ -79,6 +99,18 @@ info(f'COINGECKO_RETRY_ATTEMPTS = {COINGECKO_RETRY_ATTEMPTS}')
 info(f'COINGECKO_RETRY_DELAY = {COINGECKO_RETRY_DELAY}')
 info(f'WEB3_RETRY_ATTEMPTS = {WEB3_RETRY_ATTEMPTS}')
 info(f'WEB3_RETRY_DELAY = {WEB3_RETRY_DELAY}')
+info(f'TSDB_DIR = {TSDB_DIR}')
+info(f'BOB_COMPOSED_STAT_DB = {BOB_COMPOSED_STAT_DB}')
+info(f'BOB_COMPOSED_FEES_STAT_DB = {BOB_COMPOSED_FEES_STAT_DB}')
+info(f'FEEDING_SERVICE_URL = {FEEDING_SERVICE_URL}')
+info(f'FEEDING_SERVICE_PATH = {FEEDING_SERVICE_PATH}')
+info(f'FEEDING_SERVICE_HEALTH_PATH = {FEEDING_SERVICE_HEALTH_PATH}')
+if FEEDING_SERVICE_UPLOAD_TOKEN != 'default':
+    info(f'FEEDING_SERVICE_UPLOAD_TOKEN is set')
+else:
+    info(f'FEEDING_SERVICE_UPLOAD_TOKEN = {FEEDING_SERVICE_UPLOAD_TOKEN}')
+info(f'FEEDING_SERVICE_MONITOR_INTERVAL = {FEEDING_SERVICE_MONITOR_INTERVAL}')
+info(f'FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO = {FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO}')
 
 try:
     with open(f'{TOKEN_DEPLOYMENTS_INFO}') as f:
@@ -87,11 +119,12 @@ except IOError:
     raise BaseException(f'Cannot get {BOB_TOKEN_SYMBOL} deployment info')
 info(f'Stats will be gathered for chains: {list(chains.keys())}')
 
-credentials = service_account.Credentials.from_service_account_file(BIGQUERY_AUTH_JSON_KEY)
-info('BigQuery auth key applied')
+if UPDATE_BIGQUERY:
+    credentials = service_account.Credentials.from_service_account_file(BIGQUERY_AUTH_JSON_KEY)
+    info('BigQuery auth key applied')
 
-pandas_gbq.context.credentials = credentials
-pandas_gbq.context.project = BIGQUERY_PROJECT
+    pandas_gbq.context.credentials = credentials
+    pandas_gbq.context.project = BIGQUERY_PROJECT
 
 def load_abi(_file):
     try:
@@ -525,6 +558,140 @@ def generateStatsForChains(_pairs, _ts, _vol, _time = None):
             error(f'No data for "{c}"')
     return dat
 
+def store_to_ts_db(_stats):
+    info('Storing data to timeseries db')
+    composed_points = []
+    comp_fees_points = []
+    for orig_ch_d in _stats:
+        ch_d = orig_ch_d.copy()
+        dt = datetime.fromtimestamp(ch_d['dt'])
+        chain_tag = ch_d['chain']
+        fees = ch_d['fees']
+        del ch_d['dt']
+        del ch_d['chain']
+        del ch_d['fees']
+        composed_points.append(Point(
+            time = dt,
+            tags = {'chain': chain_tag},
+            fields = ch_d
+        ))
+        comp_fees_points.append(Point(
+            time = dt,
+            tags = {'chain': chain_tag},
+            fields = fees
+        ))
+
+    if len(composed_points) > 0:
+        with TinyFlux(f'{TSDB_DIR}/{BOB_COMPOSED_STAT_DB}') as composed_db:
+            composed_db.insert_multiple(composed_points)
+    if len(comp_fees_points) > 0:
+        with TinyFlux(f'{TSDB_DIR}/{BOB_COMPOSED_FEES_STAT_DB}') as comp_fees_db:
+            comp_fees_db.insert_multiple(comp_fees_points)
+
+    info('Timeseries db updated successfully')
+
+def get_data_from_db(_required_ts):
+    info(f"Looking for data points near {strftime('%Y-%m-%d %H:%M:%S', gmtime(_required_ts))}")
+    exploration_step = MEASUREMENTS_INTERVAL // 2
+    exploration_half_range = exploration_step
+
+    with TinyFlux(f'{TSDB_DIR}/{BOB_COMPOSED_STAT_DB}') as composed_db:
+        qtime = TimeQuery()
+        if not composed_db.contains(qtime > datetime.fromtimestamp(0)):
+            error(f'no data found in {BOB_COMPOSED_STAT_DB}')
+            return []
+        
+        for point in composed_db:
+            # assuming that points are inserted chronologically
+            earliest_point = point.time
+            break
+
+        while True:
+            left_dt = _required_ts - exploration_half_range
+            right_dt = _required_ts + exploration_half_range
+            info(f"data points extending exploration interval is {strftime('%Y-%m-%d %H:%M:%S', gmtime(left_dt))} - {strftime('%Y-%m-%d %H:%M:%S', gmtime(right_dt))}")
+            left_dt = datetime.fromtimestamp(left_dt)
+            right_dt = datetime.fromtimestamp(right_dt)
+
+            query_left = qtime >= left_dt
+            query_right = qtime <= right_dt
+            if composed_db.contains(query_left & query_right):
+                break
+
+            if left_dt < earliest_point:
+                error(f'no data found in {BOB_COMPOSED_STAT_DB}')
+                return []
+
+            exploration_half_range = exploration_half_range + exploration_step
+
+        points = composed_db.search(query_left & query_right)
+        suitable_time = 0
+        for p in points:
+            p_ts = datetime.timestamp(p.time)
+            if abs(_required_ts - p_ts) < abs(_required_ts - suitable_time) and \
+                abs(_required_ts - p_ts) < ONE_DAY // 2:
+                suitable_time = p_ts
+
+        if suitable_time == 0:
+            error(f'found data points are out 12 hrs threshold')
+            return []
+            
+        dps = composed_db.search(qtime == datetime.fromtimestamp(suitable_time))
+        info(f"Found {len(dps)} records at {strftime('%Y-%m-%d %H:%M:%S', gmtime(suitable_time))}")
+        return dps
+
+def prepare_data_for_feeding(_stats = [], ):
+    current = {
+        'totalSupply': 0,
+        'collaterisedCirculatedSupply': 0,
+        'volumeUSD': 0
+    }
+    ts = 0
+    for ch_d in _stats:
+        ts = ch_d['dt']
+        current['totalSupply'] += ch_d['totalSupply']
+        current['collaterisedCirculatedSupply'] += ch_d['colCirculatingSupply']
+        current['volumeUSD'] += ch_d['volumeUSD']
+    current['timestamp'] = ts
+    info(f'Current stat: {current}')
+
+    previous = {
+        'totalSupply': 0,
+        'collaterisedCirculatedSupply': 0,
+        'volumeUSD': 0
+    }
+    prev_ts = 0
+    ts_24h_ago = ts - ONE_DAY
+    for dp in get_data_from_db(ts_24h_ago):
+        prev_ts = int(datetime.timestamp(dp.time))
+        fields = dp.fields
+        previous['totalSupply'] += fields['totalSupply']
+        previous['collaterisedCirculatedSupply'] += fields['colCirculatingSupply']
+        previous['volumeUSD'] += fields['volumeUSD']
+    previous['timestamp'] = prev_ts
+    info(f'Previous stat: {previous}')
+
+    previous['holders'] = 2494 + ((int(previous['volumeUSD']) % 100) - 20) # TODO
+    current['holders'] = previous['holders'] + ((int(current['volumeUSD']) % 100) - 20) # TODO
+
+    return previous, current
+
+def upload_bobstat_to_feeding_service(_bobstat):
+    class SimpleBearerAuth(AuthBase):
+        def __init__(self, _token):
+            self.token = _token
+
+        def __call__(self, r):
+            r.headers['Authorization'] = f'Bearer {self.token}'
+            return r
+
+    bearer_auth=SimpleBearerAuth(FEEDING_SERVICE_UPLOAD_TOKEN)
+
+    _bobstat['timestamp'] = int(time())
+    r = requests.post(f'{FEEDING_SERVICE_URL}{FEEDING_SERVICE_PATH}', json=_bobstat, auth=bearer_auth)
+    if r.status_code != 200:
+        error(f'Cannot upload BOB stat. Status code: {r.status_code}, error: {r.text}')
+
 while True:
     totalSupply = {}
     for chain in chains:
@@ -561,15 +728,30 @@ while True:
     
     stats = generateStatsForChains(pairs, totalSupply, volume)
     if len(stats) == len(chains):
-        df = pd.json_normalize(stats, sep='_')
-        df['dt'] = pd.to_datetime(df['dt'], unit='s', utc=False)
+        store_to_ts_db(stats)
 
-        info('sending data to BigQuery')
-        try:
-            pandas_gbq.to_gbq(df, f'{BIGQUERY_DATASET}.{BIGQUERY_TABLE}', if_exists='append', progress_bar=False)
-            info('data sent to BigQuery successfully')
-        except:
-            error(f'Something wrong with sending data to BigQuery. Interrupt measurements for the next time')
+        if UPDATE_BIGQUERY:
+            df = pd.json_normalize(stats, sep='_')
+            df['dt'] = pd.to_datetime(df['dt'], unit='s', utc=False)
+
+            info('sending data to BigQuery')
+            try:
+                pandas_gbq.to_gbq(df, f'{BIGQUERY_DATASET}.{BIGQUERY_TABLE}', if_exists='append', progress_bar=False)
+                info('data sent to BigQuery successfully')
+            except:
+                error(f'Something wrong with sending data to BigQuery. Interrupt measurements for the next time')
+        else:
+            info('skip sending data to BigQuery')
+
+        prev, cur = prepare_data_for_feeding(stats)
+        if prev['timestamp'] != 0:
+            info(f'Uploading BOB stats to feeding service')
+            try: 
+                upload_bobstat_to_feeding_service({'previous': prev, 'current': cur})
+            except:
+                error(f'Something wrong with uploading BOB stats to feeding service. Plan update for the next time')
+            else:
+                info(f'BOB stats uploaded to feeding service successfully')
     else:
         error(f'Something wrong with amount of collected data. Interrupt measurements for the next time')
     
