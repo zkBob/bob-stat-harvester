@@ -11,6 +11,7 @@ The sources for the stats:
 | collateralised circulated supply | BobVault + pools on Uniswap V3 and KyberSwap Elastic |
 | trading fees | pools on Uniswap V3 and KyberSwap Elastic |
 | trading bolume | BobVault and CoinGecko API |
+| balances | BOB contract |
 
 ## Configure and run the service
 

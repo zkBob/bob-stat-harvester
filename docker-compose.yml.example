@@ -45,3 +45,20 @@ services:
         options:
             max-size: "10m"
             max-file: "1"
+  balances-indexer:
+    image: ghcr.io/zkbob/bob-balances-indexer:${RELAYER_IMAGE:-latest}
+    container_name: balances-indexer
+    environment:
+        - DEFAULT_MEASUREMENTS_INTERVAL=1
+        - SNAPSHOT_DIR=snapshots
+        - TSDB_DIR=tsdb
+    volumes:
+        - ./token-deployments-info.json:/app/token-deployments-info.json
+        - ./snapshots:/app/snapshots
+        - ./tsdb:/app/tsdb
+    restart: unless-stopped
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "10m"
+            max-file: "1"

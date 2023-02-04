@@ -2,8 +2,10 @@
   "chains":{
     "bsc":{
       "name":"BNB Smart Chain",
+      "finalization": 100,
+      "events_pull_interval": 600,
       "rpc":{
-        "url":"https://bsc-dataseed.binance.org"
+        "url":"https://rpc.ankr.com/bsc"
       },
       "inventories":[
         {
@@ -18,6 +20,8 @@
     },
     "pol":{
       "name":"Polygon",
+      "finalization": 100,
+      "events_pull_interval": 600,
       "rpc":{
         "url":"https://polygon-rpc.com"
       },
@@ -38,6 +42,8 @@
     },
     "eth":{
       "name":"Mainnet",
+      "finalization": 32,
+      "events_pull_interval": 900,
       "rpc":{
         "url":"https://mainnet.infura.io/v3/..."
       },
@@ -54,6 +60,8 @@
     },
     "opt":{
       "name":"Optimism",
+      "finalization": 32,
+      "events_pull_interval": 300,
       "rpc":{
         "url":"https://rpc.ankr.com/optimism"
       },
