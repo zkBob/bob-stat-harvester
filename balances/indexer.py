@@ -170,6 +170,11 @@ def from_1bln_base(_a3, _a2, _a1, _a0):
         retval = retval * Decimal(10 ** 9) + a
     return retval
 
+def get_chain_by_rpc(_w3)
+    for chain in chains:
+        if chains[chain]['rpc']['url'] == _w3.provider.endpoint_uri:
+            return chain
+
 def process_log(_token, _event):
     pl = _token['handler'](_event)
     blockhash = Web3.toHex(pl.blockHash)
@@ -194,13 +199,8 @@ def process_log(_token, _event):
     l['timestamp'] = get_ts_by_blockhash(_token['cnt'].web3, blockhash)
     return l
 
-get chain_by_rpc(_w3)
-    for chain in chains:
-        if chains[chain]['rpc']['url'] == _w3.provider.endpoint_uri:
-            return chain
-
 def get_logs(_token, _from_block, _to_block):
-    chain = chain_by_rpc(_token['cnt'].web3)
+    chain = get_chain_by_rpc(_token['cnt'].web3)
     info(f'{chain}: Assumiing to looking for events within [{_from_block}, {_to_block}]')
     start_block = _from_block
     finish_block = min(start_block + HISTORY_BLOCK_RANGE, _to_block)
