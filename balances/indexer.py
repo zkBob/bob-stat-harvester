@@ -194,18 +194,24 @@ def process_log(_token, _event):
     l['timestamp'] = get_ts_by_blockhash(_token['cnt'].web3, blockhash)
     return l
 
+get chain_by_rpc(_w3)
+    for chain in chains:
+        if chains[chain]['rpc']['url'] == _w3.provider.endpoint_uri:
+            return chain
+
 def get_logs(_token, _from_block, _to_block):
-    info(f'Assumiing to looking for events within [{_from_block}, {_to_block}]')
+    chain = chain_by_rpc(_token['cnt'].web3)
+    info(f'{chain}: Assumiing to looking for events within [{_from_block}, {_to_block}]')
     start_block = _from_block
     finish_block = min(start_block + HISTORY_BLOCK_RANGE, _to_block)
     if finish_block != _to_block:
-        info(f'Looking for events within a smaler range [{start_block}, {finish_block}]')
+        info(f'{chain}: Looking for events within a smaler range [{start_block}, {finish_block}]')
     events = make_web3_call(_token['cnt'].web3.eth.getLogs, {'fromBlock': start_block, 
                                                              'toBlock': finish_block, 
                                                              'address': _token['efilter'].address, 
                                                              'topics': _token['efilter'].topics})
     len_events = len(events)
-    info(f"Found {len_events} of {_token['efilter'].event_abi['name']} events")
+    info(f"{chain}: Found {len_events} of {_token['efilter'].event_abi['name']} events")
     if len_events > 0:
         logs = [process_log(_token, e) for e in events]
     else:
@@ -249,13 +255,13 @@ def get_amount_from_fields(_fields):
     return from_1bln_base(_fields['a3'], _fields['a2'], _fields['a1'], _fields['a0'])
 
 def discover_balance_updates(_chain):
-    info(f'Reading snapshot for "{_chain}"')
+    info(f'{_chain}: Reading snapshot for "{_chain}"')
     snapshot = read_balances_snapshot_for_chain(_chain)
 
-    info(f'Identifying dump range to extend existing snapshot')
+    info(f'{_chain}: Identifying dump range to extend existing snapshot')
     dump_range = (snapshot['last_block'] + 1, 
                   make_web3_call(w3_providers[_chain]['w3'].eth.getBlock, 'latest').number - w3_providers[_chain]['finalization'])
-    info(f'Dump range: {dump_range[0]} - {dump_range[1]}')
+    info(f'{_chain}: Dump range: {dump_range[0]} - {dump_range[1]}')
 
     try:
         new_last_block, logs = get_logs(w3_providers[_chain]['token'], dump_range[0], dump_range[1])
@@ -281,14 +287,14 @@ def discover_balance_updates(_chain):
                 }
             )
 
-        info(f'Storing {len(logs)} from "{_chain}" to timeseries db')
+        info(f'{_chain}: Storing {len(logs)} from "{_chain}" to timeseries db')
         with TinyFlux(f'{TSDB_DIR}/{_chain}-{TSDB_FILE_SUFFIX}') as tsdb:
             tsdb.insert_multiple(points)
         
         storages_updated = True
 
     snapshot['last_block'] = new_last_block
-    info(f'Updating snapshot for "{_chain}" with new last block {new_last_block}')
+    info(f'{_chain}: Updating snapshot for "{_chain}" with new last block {new_last_block}')
     write_balances_snapshot_for_chain(_chain, snapshot)
         
     return storages_updated, head_achieved
@@ -303,14 +309,14 @@ def pull_data_from_chain(_chain):
             else:
                 first_time = False
             head_achieved = discover_balance_updates(_chain)[1]
-        info('historical events received, reducing pulling frequency')
+        info(f'{_chain}: historical events received, reducing pulling frequency')
         delay = chains[_chain]['events_pull_interval']
         next_time = time() + delay
         while head_achieved:
             sleep(max(0, next_time - time()))
             head_achieved = discover_balance_updates(_chain)[1]
             next_time += (time() - next_time) // delay * delay + delay
-        info('more historical events discovered, increasing pulling frequency')
+        info(f'{_chain}: more historical events discovered, increasing pulling frequency')
 
 scheduled_tasks = {}
 while True:
@@ -331,4 +337,5 @@ while True:
         info(f'THREADS MONITORING: Restarting thread for {chainid}')
         scheduled_tasks[chainid] = threading.Thread(target=lambda: pull_data_from_chain(chainid))
         scheduled_tasks[chainid].daemon = True
+        scheduled_tasks[chainid].name = f'{chainid}-indexer'
         scheduled_tasks[chainid].start()
