@@ -214,31 +214,32 @@ def get_logs(_token, _from_block, _to_block):
     return finish_block, logs
 
 def change_balance(_balances, _transfer):
-    if _transfer['from'] != ZERO_ACCOUNT:
-        prev_balance = Decimal(0)
-        if _transfer['from'] in _balances:
-            prev_balance = _balances[_transfer['from']]
-            if not type(prev_balance) == str:
-                prev_balance = str(prev_balance)
-            prev_balance = Decimal(prev_balance)
-        new_balance = prev_balance - _transfer['value']
-        if new_balance == 0:
-            del _balances[_transfer['from']]
-        else:
-            _balances[_transfer['from']] = str(new_balance)
+    if  _transfer['value'] != 0:
+        if _transfer['from'] != ZERO_ACCOUNT:
+            prev_balance = Decimal(0)
+            if _transfer['from'] in _balances:
+                prev_balance = _balances[_transfer['from']]
+                if not type(prev_balance) == str:
+                    prev_balance = str(prev_balance)
+                prev_balance = Decimal(prev_balance)
+            new_balance = prev_balance - _transfer['value']
+            if new_balance == 0:
+                del _balances[_transfer['from']]
+            else:
+                _balances[_transfer['from']] = str(new_balance)
 
-    if _transfer['to'] != ZERO_ACCOUNT:
-        prev_balance = Decimal(0)
-        if _transfer['to'] in _balances:
-            prev_balance = _balances[_transfer['to']]
-            if not type(prev_balance) == str:
-                prev_balance = str(prev_balance)
-            prev_balance = Decimal(prev_balance)
-        new_balance = prev_balance + _transfer['value']
-        if new_balance == 0:
-            del _balances[_transfer['to']]
-        else:
-            _balances[_transfer['to']] = str(new_balance)
+        if _transfer['to'] != ZERO_ACCOUNT:
+            prev_balance = Decimal(0)
+            if _transfer['to'] in _balances:
+                prev_balance = _balances[_transfer['to']]
+                if not type(prev_balance) == str:
+                    prev_balance = str(prev_balance)
+                prev_balance = Decimal(prev_balance)
+            new_balance = prev_balance + _transfer['value']
+            if new_balance == 0:
+                del _balances[_transfer['to']]
+            else:
+                _balances[_transfer['to']] = str(new_balance)
 
 def write_balances_snapshot_for_chain(_chain, _snapshot):
     with open(f'{SNAPSHOT_DIR}/{_chain}-{SNAPSHOT_FILE_SUFFIX}', 'w') as json_file:
