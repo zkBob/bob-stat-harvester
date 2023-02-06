@@ -17,8 +17,6 @@ from logging import basicConfig, getLogger, info, error, debug, warning, WARNING
 
 import threading
 
-fromtimestamp = datetime.fromtimestamp
-
 basicConfig(level=INFO)
 
 ABI_ERC20 = "abi/erc20.json"
@@ -254,6 +252,11 @@ def write_balances_snapshot_for_chain(_chain, _snapshot):
 def get_amount_from_fields(_fields):
     return from_1bln_base(_fields['a3'], _fields['a2'], _fields['a1'], _fields['a0'])
 
+def store_logs_in_tsdb(_chain: str, _pts: dict):
+    for grp in _pts:
+        with TinyFlux(f'{TSDB_DIR}/{_chain}-{grp}-{TSDB_FILE_SUFFIX}') as tsdb:
+            tsdb.insert_multiple(_pts[grp])
+
 def discover_balance_updates(_chain):
     info(f'{_chain}: Reading snapshot for "{_chain}"')
     snapshot = read_balances_snapshot_for_chain(_chain)
@@ -271,10 +274,14 @@ def discover_balance_updates(_chain):
 
     storages_updated = False
     if len(logs) > 0:
-        points = []
+        points = {}
         for log in logs:
-            points.append(Point(
-                time = datetime.fromtimestamp(log['timestamp']),
+            log_ts = log['timestamp']
+            group = strftime('%Y%m', gmtime(log_ts))
+            if not group in points:
+                points[group] = []
+            points[group].append(Point(
+                time = datetime.fromtimestamp(log_ts),
                 tags = log['tags'],
                 fields = log['fields']
             ))
@@ -287,9 +294,8 @@ def discover_balance_updates(_chain):
                 }
             )
 
-        info(f'{_chain}: Storing {len(logs)} from "{_chain}" to timeseries db')
-        with TinyFlux(f'{TSDB_DIR}/{_chain}-{TSDB_FILE_SUFFIX}') as tsdb:
-            tsdb.insert_multiple(points)
+        info(f'{_chain}: Storing {len(logs)} to timeseries db')
+        store_logs_in_tsdb(_chain, points)
         
         storages_updated = True
 
