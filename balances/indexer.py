@@ -2,6 +2,7 @@ from os import getenv
 
 from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
+from web3.contract import Contract
 
 from time import sleep, time, gmtime
 from datetime import datetime
@@ -10,11 +11,13 @@ from json import load, dump
 
 from tinyflux import TinyFlux, Point
 
+from decimal import Decimal
+
 from logging import basicConfig, getLogger, info, error, debug, warning, WARNING, INFO, DEBUG
 
-fromtimestamp = datetime.fromtimestamp
-
 import threading
+
+fromtimestamp = datetime.fromtimestamp
 
 basicConfig(level=INFO)
 
@@ -114,9 +117,9 @@ def get_token_decimals(_token):
         rpc_response_cache['decimals'][endpoint][_token.address] = resp
     return rpc_response_cache['decimals'][endpoint][_token.address]
 
-def normalise_amount(_amount, _token):
-    decimals = get_token_decimals(_token)
-    return _amount / (10 ** decimals)
+def normalise_amount(_amount: Decimal, _token: Contract) -> Decimal:
+    decimals = Decimal(get_token_decimals(_token))
+    return _amount / (Decimal(10) ** decimals)
 
 blocks_cache = {}
 
@@ -149,9 +152,28 @@ def read_balances_snapshot_for_chain(_chain):
         }
     return snapshot
 
+def to_1bln_base(_value):
+    one_bln = Decimal(10 ** 9)
+    _val = Decimal(_value)
+    a0 = _val - ((_val // one_bln) * one_bln)
+    v_tmp = (_val - a0) // one_bln 
+    a1 = v_tmp - ((v_tmp // one_bln) * one_bln)
+    v_tmp = (v_tmp - a1) // one_bln 
+    a2 = v_tmp - ((v_tmp // one_bln) * one_bln)
+    v_tmp = (v_tmp - a2) // one_bln
+    a3 = v_tmp - ((v_tmp // one_bln) * one_bln)
+    return int(a3), int(a2), int(a1), int(a0)
+
+def from_1bln_base(_a3, _a2, _a1, _a0):
+    retval = Decimal(_a3)
+    for a in (_a2, _a1, _a0):
+        retval = retval * Decimal(10 ** 9) + a
+    return retval
+
 def process_log(_token, _event):
     pl = _token['handler'](_event)
     blockhash = Web3.toHex(pl.blockHash)
+    (a3, a2, a1, a0) = to_1bln_base(pl.args['value'])
     l = { 
         'tags': {
             "logIndex": str(pl.logIndex),
@@ -163,7 +185,10 @@ def process_log(_token, _event):
             "to": pl.args['to']
         },
         'fields': {
-            'amount': normalise_amount(pl.args['value'], _token['cnt'])
+            'a0': a0,
+            'a1': a1,
+            'a2': a2,
+            'a3': a3,            
         }
     }
     l['timestamp'] = get_ts_by_blockhash(_token['cnt'].web3, blockhash)
@@ -190,24 +215,37 @@ def get_logs(_token, _from_block, _to_block):
 
 def change_balance(_balances, _transfer):
     if _transfer['from'] != ZERO_ACCOUNT:
-        prev_balance = 0
+        prev_balance = Decimal(0)
         if _transfer['from'] in _balances:
             prev_balance = _balances[_transfer['from']]
-        _balances[_transfer['from']] = prev_balance - _transfer['value']
-        if _balances[_transfer['from']] == 0:
+            if not type(prev_balance) == str:
+                prev_balance = str(prev_balance)
+            prev_balance = Decimal(prev_balance)
+        new_balance = prev_balance - _transfer['value']
+        if new_balance == 0:
             del _balances[_transfer['from']]
+        else:
+            _balances[_transfer['from']] = str(new_balance)
 
     if _transfer['to'] != ZERO_ACCOUNT:
-        prev_balance = 0
+        prev_balance = Decimal(0)
         if _transfer['to'] in _balances:
             prev_balance = _balances[_transfer['to']]
-        _balances[_transfer['to']] = prev_balance + _transfer['value']
-        if _balances[_transfer['to']] == 0:
+            if not type(prev_balance) == str:
+                prev_balance = str(prev_balance)
+            prev_balance = Decimal(prev_balance)
+        new_balance = prev_balance + _transfer['value']
+        if new_balance == 0:
             del _balances[_transfer['to']]
+        else:
+            _balances[_transfer['to']] = str(new_balance)
 
 def write_balances_snapshot_for_chain(_chain, _snapshot):
     with open(f'{SNAPSHOT_DIR}/{_chain}-{SNAPSHOT_FILE_SUFFIX}', 'w') as json_file:
         dump(_snapshot, json_file)
+
+def get_amount_from_fields(_fields):
+    return from_1bln_base(_fields['a3'], _fields['a2'], _fields['a1'], _fields['a0'])
 
 def discover_balance_updates(_chain):
     info(f'Reading snapshot for "{_chain}"')
@@ -238,7 +276,7 @@ def discover_balance_updates(_chain):
                 snapshot['balances'],
                 {'from': log['tags']['from'],
                  'to': log['tags']['to'],
-                 'value': log['fields']['amount']
+                 'value': normalise_amount(get_amount_from_fields(log['fields']), w3_providers[_chain]['token']['cnt'])
                 }
             )
 
