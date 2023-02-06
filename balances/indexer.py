@@ -170,7 +170,7 @@ def from_1bln_base(_a3, _a2, _a1, _a0):
         retval = retval * Decimal(10 ** 9) + a
     return retval
 
-def get_chain_by_rpc(_w3)
+def get_chain_by_rpc(_w3):
     for chain in chains:
         if chains[chain]['rpc']['url'] == _w3.provider.endpoint_uri:
             return chain
