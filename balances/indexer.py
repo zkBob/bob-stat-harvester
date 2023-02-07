@@ -4,7 +4,7 @@ from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 from web3.contract import Contract
 
-from time import sleep, time, gmtime
+from time import sleep, time, gmtime, strftime
 from datetime import datetime
 
 from json import load, dump
