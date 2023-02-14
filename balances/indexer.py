@@ -165,7 +165,7 @@ def to_1bln_base(_value):
 def from_1bln_base(_a3, _a2, _a1, _a0):
     retval = Decimal(_a3)
     for a in (_a2, _a1, _a0):
-        retval = retval * Decimal(10 ** 9) + a
+        retval = retval * Decimal(10 ** 9) + Decimal(a)
     return retval
 
 def get_chain_by_rpc(_w3):
