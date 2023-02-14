@@ -60,7 +60,7 @@
     },
     "opt":{
       "name":"Optimism",
-      "finalization": 32,
+      "finalization": 100,
       "events_pull_interval": 300,
       "rpc":{
         "url":"https://rpc.ankr.com/optimism"
