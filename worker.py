@@ -61,6 +61,7 @@ ABI_ERC20 = "abi/erc20.json"
 TOKEN_DEPLOYMENTS_INFO = getenv('TOKEN_DEPLOYMENTS_INFO', 'token-deployments-info.json')
 SNAPSHOT_DIR = getenv('SNAPSHOT_DIR', '.')
 BOBVAULT_SNAPSHOT_FILE = getenv('BOBVAULT_SNAPSHOT_FILE', 'bobvault-snaphsot.json')
+BALANCES_SNAPSHOT_FILE_SUFFIX = getenv('BALANCES_SNAPSHOT_FILE_SUFFIX', 'bob-holders-snaphsot.json')
 UPDATE_BIGQUERY = getenv('UPDATE_BIGQUERY', 'true')
 BIGQUERY_AUTH_JSON_KEY = getenv('BIGQUERY_AUTH_JSON_KEY', 'bigquery-key.json')
 BIGQUERY_PROJECT = getenv('BIGQUERY_PROJECT', 'some-project')
@@ -89,6 +90,7 @@ else:
 info(f'TOKEN_DEPLOYMENTS_INFO = {TOKEN_DEPLOYMENTS_INFO}')
 info(f'SNAPSHOT_DIR = {SNAPSHOT_DIR}')
 info(f'BOBVAULT_SNAPSHOT_FILE = {BOBVAULT_SNAPSHOT_FILE}')
+info(f'BALANCES_SNAPSHOT_FILE_SUFFIX = {BALANCES_SNAPSHOT_FILE_SUFFIX}')
 info(f'UPDATE_BIGQUERY = {UPDATE_BIGQUERY}')
 info(f'BIGQUERY_AUTH_JSON_KEY = {BIGQUERY_AUTH_JSON_KEY}')
 info(f'BIGQUERY_PROJECT = {BIGQUERY_PROJECT}')
@@ -522,7 +524,15 @@ def get_bobvault_volume_24h():
         info(f'Discovered volume: {vol}')
     return {'pol': vol}
 
-def generateStatsForChains(_pairs, _ts, _vol, _time = None):
+def get_bob_holders_amount(_chain):
+    info(f'Getting token holders for {_chain}')
+    with open(f'{SNAPSHOT_DIR}/{_chain}-{BALANCES_SNAPSHOT_FILE_SUFFIX}', 'r') as json_file:
+        snapshot = load(json_file)
+    holders_num = len(snapshot['balances'])
+    info(f'Number of token holders: for {holders_num}')
+    return holders_num
+
+def generateStatsForChains(_pairs, _ts, _vol, _holders, _time = None):
     if not _time:
         _time = int(time())
     info(f"Data timesmap: {strftime('%Y-%m-%d %H:%M:%S', gmtime(_time))}")
@@ -550,6 +560,11 @@ def generateStatsForChains(_pairs, _ts, _vol, _time = None):
             d['volumeUSD'] = 0
             if c in _vol:
                 d['volumeUSD'] = _vol[c]
+
+            d['holders'] = 0
+            if c in _holders:
+                d['holders'] = _holders[c]
+
             d['chain'] = chain_names[c]
             d['dt'] = _time
             info(f'Stats for chain {d}')
@@ -644,7 +659,8 @@ def prepare_data_for_feeding(_stats = [], ):
     current = {
         'totalSupply': 0,
         'collaterisedCirculatedSupply': 0,
-        'volumeUSD': 0
+        'volumeUSD': 0,
+        'holders': 0
     }
     ts = 0
     for ch_d in _stats:
@@ -652,14 +668,18 @@ def prepare_data_for_feeding(_stats = [], ):
         current['totalSupply'] += ch_d['totalSupply']
         current['collaterisedCirculatedSupply'] += ch_d['colCirculatingSupply']
         current['volumeUSD'] += ch_d['volumeUSD']
+        current['holders'] += ch_d['holders']
     current['timestamp'] = ts
     info(f'Current stat: {current}')
 
     previous = {
         'totalSupply': 0,
         'collaterisedCirculatedSupply': 0,
-        'volumeUSD': 0
+        'volumeUSD': 0,
+        'holders': 0
     }
+    # TODO: remove this flag as soon as enough historical data collected
+    holders_found = False
     prev_ts = 0
     ts_24h_ago = ts - ONE_DAY
     for dp in get_data_from_db(ts_24h_ago):
@@ -668,11 +688,13 @@ def prepare_data_for_feeding(_stats = [], ):
         previous['totalSupply'] += fields['totalSupply']
         previous['collaterisedCirculatedSupply'] += fields['colCirculatingSupply']
         previous['volumeUSD'] += fields['volumeUSD']
+        if 'holders' in fields:
+            previous['holders'] += fields['holders']
+            holders_found = True
     previous['timestamp'] = prev_ts
+    if not holders_found:
+        previous['holders'] = current['holders'] - (int(previous['volumeUSD']) % 50)
     info(f'Previous stat: {previous}')
-
-    previous['holders'] = 2494 + ((int(previous['volumeUSD']) % 100) - 20) # TODO
-    current['holders'] = previous['holders'] + ((int(current['volumeUSD']) % 100) - 20) # TODO
 
     return previous, current
 
@@ -691,6 +713,8 @@ def upload_bobstat_to_feeding_service(_bobstat):
     r = requests.post(f'{FEEDING_SERVICE_URL}{FEEDING_SERVICE_PATH}', json=_bobstat, auth=bearer_auth)
     if r.status_code != 200:
         error(f'Cannot upload BOB stat. Status code: {r.status_code}, error: {r.text}')
+        return False
+    return True
 
 while True:
     totalSupply = {}
@@ -699,7 +723,11 @@ while True:
         if totalSupply[chain] == 0:
             error(f'Error happens during total supply collecting. Interrupt measurements for the next time')
             continue
-    
+
+    bob_holders = {}
+    for chain in chains:
+        bob_holders[chain] = get_bob_holders_amount(chain)
+
     pairs = {}
     for chain in chains:
         w3 = w3_providers[chain]
@@ -726,7 +754,7 @@ while True:
         volume[chain] += bv_volume[chain]
     info(f'{volume}')
     
-    stats = generateStatsForChains(pairs, totalSupply, volume)
+    stats = generateStatsForChains(pairs, totalSupply, volume, bob_holders)
     if len(stats) == len(chains):
         store_to_ts_db(stats)
 
@@ -747,11 +775,12 @@ while True:
         if prev['timestamp'] != 0:
             info(f'Uploading BOB stats to feeding service')
             try: 
-                upload_bobstat_to_feeding_service({'previous': prev, 'current': cur})
+                status = upload_bobstat_to_feeding_service({'previous': prev, 'current': cur})
             except:
                 error(f'Something wrong with uploading BOB stats to feeding service. Plan update for the next time')
             else:
-                info(f'BOB stats uploaded to feeding service successfully')
+                if status:
+                    info(f'BOB stats uploaded to feeding service successfully')
     else:
         error(f'Something wrong with amount of collected data. Interrupt measurements for the next time')
     
