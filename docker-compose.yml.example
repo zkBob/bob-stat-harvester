@@ -26,14 +26,100 @@ services:
         options:
             max-size: "10m"
             max-file: "1"
-  bobvault-harvester:
+  bobvault-harvester-pol:
     image: ghcr.io/zkbob/bobvault-trades-collector:${RELAYER_IMAGE:-latest}
-    container_name: bobvault-harvester
+    container_name: bobvault-harvester-pol
     environment:
+        - CHAIN_SELECTOR=pol
+        - POOL_ID=bobvault_polygon
         - MEASUREMENTS_INTERVAL=900
         - SNAPSHOT_DIR=snapshots
         - FEEDING_SERVICE_URL=https://where.bob-circulating-supply.deployed
-        - FEEDING_SERVICE_PATH=/coingecko/bobvault/polygon/upload
+        - FEEDING_SERVICE_HEALTH_CONTAINER=polygon
+        - FEEDING_SERVICE_HEALTH_PATH=/health
+        - FEEDING_SERVICE_UPLOAD_TOKEN=@uth70ken
+    volumes:
+        - ./token-deployments-info.json:/app/token-deployments-info.json
+        - ./snapshots:/app/snapshots
+    restart: unless-stopped
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "10m"
+            max-file: "1"
+  bobvault-harvester-bsc:
+    image: ghcr.io/zkbob/bobvault-trades-collector:${RELAYER_IMAGE:-latest}
+    container_name: bobvault-harvester-bsc
+    environment:
+        - CHAIN_SELECTOR=bsc
+        - POOL_ID=bobvault_bsc
+        - MEASUREMENTS_INTERVAL=900
+        - SNAPSHOT_DIR=snapshots
+        - FEEDING_SERVICE_URL=https://where.bob-circulating-supply.deployed
+        - FEEDING_SERVICE_HEALTH_CONTAINER=bsc
+        - FEEDING_SERVICE_HEALTH_PATH=/health
+        - FEEDING_SERVICE_UPLOAD_TOKEN=@uth70ken
+    volumes:
+        - ./token-deployments-info.json:/app/token-deployments-info.json
+        - ./snapshots:/app/snapshots
+    restart: unless-stopped
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "10m"
+            max-file: "1"
+  bobvault-harvester-eth:
+    image: ghcr.io/zkbob/bobvault-trades-collector:${RELAYER_IMAGE:-latest}
+    container_name: bobvault-harvester-eth
+    environment:
+        - CHAIN_SELECTOR=eth
+        - POOL_ID=bobvault_eth_mainnet
+        - MEASUREMENTS_INTERVAL=900
+        - SNAPSHOT_DIR=snapshots
+        - FEEDING_SERVICE_URL=https://where.bob-circulating-supply.deployed
+        - FEEDING_SERVICE_HEALTH_CONTAINER=mainnet
+        - FEEDING_SERVICE_HEALTH_PATH=/health
+        - FEEDING_SERVICE_UPLOAD_TOKEN=@uth70ken
+    volumes:
+        - ./token-deployments-info.json:/app/token-deployments-info.json
+        - ./snapshots:/app/snapshots
+    restart: unless-stopped
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "10m"
+            max-file: "1"
+  bobvault-harvester-opt:
+    image: ghcr.io/zkbob/bobvault-trades-collector:${RELAYER_IMAGE:-latest} 
+    container_name: bobvault-harvester-opt
+    environment:
+        - CHAIN_SELECTOR=opt
+        - POOL_ID=bobvault_eth_optimism
+        - MEASUREMENTS_INTERVAL=900
+        - SNAPSHOT_DIR=snapshots
+        - FEEDING_SERVICE_URL=https://where.bob-circulating-supply.deployed
+        - FEEDING_SERVICE_HEALTH_CONTAINER=eth-opt
+        - FEEDING_SERVICE_HEALTH_PATH=/health
+        - FEEDING_SERVICE_UPLOAD_TOKEN=@uth70ken
+    volumes:
+        - ./token-deployments-info.json:/app/token-deployments-info.json
+        - ./snapshots:/app/snapshots
+    restart: unless-stopped
+    logging:
+        driver: "json-file"
+        options:
+            max-size: "10m"
+            max-file: "1"
+  bobvault-harvester-arb:
+    image: ghcr.io/zkbob/bobvault-trades-collector:${RELAYER_IMAGE:-latest}
+    container_name: bobvault-harvester-arb
+    environment:
+        - CHAIN_SELECTOR=arb1
+        - POOL_ID=bobvault_arbitrum_one
+        - MEASUREMENTS_INTERVAL=900
+        - SNAPSHOT_DIR=snapshots
+        - FEEDING_SERVICE_URL=https://where.bob-circulating-supply.deployed
+        - FEEDING_SERVICE_HEALTH_CONTAINER=arbitrum1
         - FEEDING_SERVICE_HEALTH_PATH=/health
         - FEEDING_SERVICE_UPLOAD_TOKEN=@uth70ken
     volumes:

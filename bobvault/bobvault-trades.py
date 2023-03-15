@@ -25,44 +25,40 @@ ONE_ETHER = 10 ** 18
 DEFAULT_SMALL_VALUE = float(0)
 DEFAULT_BIG_VALUE = float(10 ** 9)
 
-BOBVAULT_ADDRESS = Web3.toChecksumAddress("0x25e6505297b44f4817538fb2d91b88e1cf841b54")
 BOB_TOKEN_ADDRESS = Web3.toChecksumAddress("0xb0b195aefa3650a6908f15cdac7d92f8a5791b0b")
 
+CHAIN_SELECTOR = getenv('CHAIN_SELECTOR', 'pol')
+POOL_ID = getenv('POOL_ID', 'bobvault_polygon')
 TOKEN_DEPLOYMENTS_INFO = getenv('TOKEN_DEPLOYMENTS_INFO', 'token-deployments-info.json')
 SNAPSHOT_DIR = getenv('SNAPSHOT_DIR', '.')
-SNAPSHOT_FILE = getenv('SNAPSHOT_FILE', 'bobvault-snaphsot.json')
-COINGECKO_SNAPSHOT_FILE = getenv('COINGECKO_SNAPSHOT_FILE', 'bobvault-coingecko-data.json')
-FINALIZATION_DELAY = int(getenv('FINALIZATION_DELAY', 100))
-HISTORY_BLOCK_RANGE = int(getenv('HISTORY_BLOCK_RANGE', 3000))
+SNAPSHOT_FILE_SUFIX = getenv('SNAPSHOT_FILE_SUFIX', 'bobvault-snaphsot.json')
+COINGECKO_SNAPSHOT_FILE_SUFIX = getenv('COINGECKO_SNAPSHOT_FILE_SUFIX', 'bobvault-coingecko-data.json')
 MEASUREMENTS_INTERVAL = int(getenv('MEASUREMENTS_INTERVAL', 60 * 60 * 2 - 30))
 WEB3_RETRY_ATTEMPTS = int(getenv('WEB3_RETRY_ATTEMPTS', 2))
 WEB3_RETRY_DELAY = int(getenv('WEB3_RETRY_DELAY', 5))
 FEEDING_SERVICE_URL = getenv('FEEDING_SERVICE_URL', 'http://127.0.0.1:8080')
-FEEDING_SERVICE_PATH = getenv('FEEDING_SERVICE_PATH', '/')
 FEEDING_SERVICE_HEALTH_PATH = getenv('FEEDING_SERVICE_HEALTH_PATH', '/health')
+FEEDING_SERVICE_HEALTH_CONTAINER = getenv('FEEDING_SERVICE_HEALTH_CONTAINER', 'polygon')
 FEEDING_SERVICE_UPLOAD_TOKEN = getenv('FEEDING_SERVICE_UPLOAD_TOKEN', 'default')
 FEEDING_SERVICE_MONITOR_INTERVAL = int(getenv('FEEDING_SERVICE_MONITOR_INTERVAL', 60))
 FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO = int(getenv('FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO', 60))
 
-if FEEDING_SERVICE_PATH[0] != '/':
-    error(f'FEEDING_SERVICE_PATH must start with /')
-    raise BaseException(f'Incorrect configuration')
 if FEEDING_SERVICE_HEALTH_PATH[0] != '/':
     error(f'FEEDING_SERVICE_HEALTH_PATH must start with /')
     raise BaseException(f'Incorrect configuration')
 
+info(f'CHAIN_SELECTOR = {CHAIN_SELECTOR}')
+info(f'POOL_ID = {POOL_ID}')
 info(f'TOKEN_DEPLOYMENTS_INFO = {TOKEN_DEPLOYMENTS_INFO}')
 info(f'SNAPSHOT_DIR = {SNAPSHOT_DIR}')
-info(f'SNAPSHOT_FILE = {SNAPSHOT_FILE}')
-info(f'COINGECKO_SNAPSHOT_FILE = {COINGECKO_SNAPSHOT_FILE}')
-info(f'FINALIZATION_DELAY = {FINALIZATION_DELAY}')
-info(f'HISTORY_BLOCK_RANGE = {HISTORY_BLOCK_RANGE}')
+info(f'SNAPSHOT_FILE_SUFIX = {SNAPSHOT_FILE_SUFIX}')
+info(f'COINGECKO_SNAPSHOT_FILE_SUFIX = {COINGECKO_SNAPSHOT_FILE_SUFIX}')
 info(f'MEASUREMENTS_INTERVAL = {MEASUREMENTS_INTERVAL}')
 info(f'WEB3_RETRY_ATTEMPTS = {WEB3_RETRY_ATTEMPTS}')
 info(f'WEB3_RETRY_DELAY = {WEB3_RETRY_DELAY}')
 info(f'FEEDING_SERVICE_URL = {FEEDING_SERVICE_URL}')
-info(f'FEEDING_SERVICE_PATH = {FEEDING_SERVICE_PATH}')
 info(f'FEEDING_SERVICE_HEALTH_PATH = {FEEDING_SERVICE_HEALTH_PATH}')
+info(f'FEEDING_SERVICE_HEALTH_CONTAINER = {FEEDING_SERVICE_HEALTH_CONTAINER}')
 if FEEDING_SERVICE_UPLOAD_TOKEN != 'default':
     info(f'FEEDING_SERVICE_UPLOAD_TOKEN is set')
 else:
@@ -74,13 +70,42 @@ try:
     with open(f'{TOKEN_DEPLOYMENTS_INFO}') as f:
         chains = load(f)['chains']
 except IOError:
-    raise BaseException(f'Cannot get BOB token deployment info')
-    
-if 'vault' in chains['pol']:
-    start_block = chains['pol']['vault']['start_block'] # 36750276
+    error(f'Cannot get BOB token deployment info')
+    raise BaseException(f'Incorrect configuration')
+
+if not CHAIN_SELECTOR in chains:
+    error(f'Cannot find the chain {CHAIN_SELECTOR} in the deployment specs')
+    raise BaseException(f'Incorrect configuration')
+
+vault_cfg = {}
+for i in chains[CHAIN_SELECTOR]['inventories']:
+    if i['protocol'] == "BobVault":
+        vault_cfg = i
+if len(vault_cfg) == 0:
+    error(f'Cannot find the vault configuration in the deployment specs')
+    raise BaseException(f'Incorrect configuration')
+
+if 'start_block' in vault_cfg:
+    start_block = int(vault_cfg['start_block']) # 36750276
 else:
-    raise BaseException(f'Cannot find vault related info in the deployment specs')
-    
+    error(f'Cannot find vault start block in the deployment specs')
+    raise BaseException(f'Incorrect configuration')
+
+if 'feeding_service_path' in vault_cfg:    
+    if vault_cfg['feeding_service_path'][0] != '/':
+        error(f'feeding_service_path in the deployment spec must start with /')
+        raise BaseException(f'Incorrect configuration')
+    feeding_service_path = vault_cfg['feeding_service_path']
+else:
+    error(f'Cannot find feeding service path for vault in the deployment specs')
+    raise BaseException(f'Incorrect configuration')
+
+if 'address' in vault_cfg:
+    vault_addr = Web3.toChecksumAddress(vault_cfg['address'])
+else:
+    error(f'Cannot find vault address in the deployment specs')
+    raise BaseException(f'Incorrect configuration')
+
 def load_abi(_file):
     try:
         with open(_file) as f:
@@ -93,21 +118,27 @@ def load_abi(_file):
 erc20_abi = load_abi(ABI_ERC20)
 bobVault_abi = load_abi(ABI_BOBVAULT)
 
-plg_w3 = Web3(HTTPProvider(chains['pol']['rpc']['url']))
+plg_w3 = Web3(HTTPProvider(chains[CHAIN_SELECTOR]['rpc']['url']))
 plg_w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
+history_block_range = chains[CHAIN_SELECTOR]['rpc']['history_block_range']
+finalization_delay = chains[CHAIN_SELECTOR]['finalization']
+
 def make_web3_call(func, *args, **kwargs):
+    exc = None
     attempts = 0
     while attempts < WEB3_RETRY_ATTEMPTS:
         try:
             return func(*args, **kwargs)
-        except:
-            error(f'Not able to get data')
+        except Exception as e:
+            exc = e
+            error(f'Not able to get data ({e})')
         attempts += 1
         info(f'Repeat attempt in {WEB3_RETRY_DELAY} seconds')
         sleep(WEB3_RETRY_DELAY)
-    raise BaseException(f'Cannot make web3 call')
-    
+    error(f'Cannot make web3 call')
+    raise exc
+
 rpc_response_cache = {}
 
 def get_token_decimals(_token):
@@ -205,7 +236,7 @@ def reset_cache_for_bob_balance():
         info(f'reset cache for bob balance')
         del rpc_response_cache['bob_balance']
     
-vault_c = plg_w3.eth.contract(abi = bobVault_abi, address = BOBVAULT_ADDRESS)
+vault_c = plg_w3.eth.contract(abi = bobVault_abi, address = vault_addr)
 
 buy_event_filter = vault_c.events.Buy.build_filter()
 buyTopic = buy_event_filter.event_topic
@@ -274,9 +305,9 @@ def process_log(l):
 def get_logs(efilters, from_block, to_block):
     info(f'Looking for events within [{from_block}, {to_block}]')
     logs = []
-    for b in range(from_block, to_block, HISTORY_BLOCK_RANGE+1):
+    for b in range(from_block, to_block, history_block_range+1):
         start_block = b
-        finish_block = min(b + HISTORY_BLOCK_RANGE, to_block)
+        finish_block = min(b + history_block_range, to_block)
         if (from_block != start_block) or (to_block != finish_block):
             info(f'Looking for events within a smaler range [{start_block}, {finish_block}]')
         vault_logs = []
@@ -343,7 +374,7 @@ def bobvault_data_for_coingecko(snapshot, ts_start, ts_end):
         
         if not ticker_id in cg_data:
             cg_data[ticker_id] = {
-                'pool_id': f'bobvault_polygon',
+                'pool_id': POOL_ID,
                 'base_address': base,
                 'target_address': target,                
                 'base_currency': base_sym,
@@ -428,7 +459,7 @@ def bobvault_data_for_coingecko(snapshot, ts_start, ts_end):
         token2_inFee = col_info[5]
         token2_outFee = col_info[6]        
         if cg_data[ticker_id]['base_address'] == BOB_TOKEN_ADDRESS:
-            bal = get_bob_balance(BOBVAULT_ADDRESS, snapshot['last_block'])
+            bal = get_bob_balance(vault_addr, snapshot['last_block'])
             token1_balance = normalise_amount(bal, BOB_TOKEN_ADDRESS)
             token1_one = 10 ** get_token_decimals_by_token_str(BOB_TOKEN_ADDRESS, plg_w3)
             cg_data[ticker_id]['orderbook']['bids'][0][1] = 1 - (token1_one / ONE_ETHER * token2_price / token2_one * token2_outFee / ONE_ETHER)
@@ -480,7 +511,7 @@ def upload_coingecko_data_to_feeding_service(cg):
 
     bearer_auth=SimpleBearerAuth(FEEDING_SERVICE_UPLOAD_TOKEN)
 
-    r = requests.post(f'{FEEDING_SERVICE_URL}{FEEDING_SERVICE_PATH}', json=cg, auth=bearer_auth)
+    r = requests.post(f'{FEEDING_SERVICE_URL}{feeding_service_path}', json=cg, auth=bearer_auth)
     if r.status_code != 200:
         error(f'Cannot upload CG data. Status code: {r.status_code}, error: {r.text}')
 
@@ -504,23 +535,28 @@ def monitor_feeding_service():
         if r.status_code != 200:
             error(f'Cannot upload CG data. Status code: {r.status_code}, error: {r.text}')
         resp = r.json()
-        if resp['BobVault']['polygon']['status'] == 'error' and \
-            resp['BobVault']['polygon']['lastSuccessTimestamp'] == 0 and \
-            resp['BobVault']['polygon']['lastErrorTimestamp'] == 0:
-                warning(f'No data on the feeding service')
-                try:
-                    with open(f'{SNAPSHOT_DIR}/{COINGECKO_SNAPSHOT_FILE}', 'r') as json_file:
-                        cg = load(json_file)
-                except IOError:
-                    error(f'No snapshot {COINGECKO_SNAPSHOT_FILE} found')
-                else:
-                    info(f'Uploading data to feeding service')
-                    try: 
-                        upload_coingecko_data_to_feeding_service(cg)
-                    except:
-                        error(f'Something wrong with uploading data to feeding service. Plan update for the next time')
+        try:
+            bv_halth = resp['modules']['BobVaults'][FEEDING_SERVICE_HEALTH_CONTAINER]
+        except: 
+            error(f'Cannot find health data for "{FEEDING_SERVICE_HEALTH_CONTAINER}"')
+        else:
+            if bv_halth['status'] == 'error' and \
+                bv_halth['lastSuccessTimestamp'] == 0 and \
+                bv_halth['lastErrorTimestamp'] == 0:
+                    warning(f'No data on the feeding service')
+                    try:
+                        with open(f'{SNAPSHOT_DIR}/{CHAIN_SELECTOR}-{COINGECKO_SNAPSHOT_FILE_SUFIX}', 'r') as json_file:
+                            cg = load(json_file)
+                    except IOError:
+                        error(f'No snapshot {CHAIN_SELECTOR}-{COINGECKO_SNAPSHOT_FILE_SUFIX} found')
                     else:
-                        info(f'Data uploaded to feeding service successfully')
+                        info(f'Uploading data to feeding service')
+                        try: 
+                            upload_coingecko_data_to_feeding_service(cg)
+                        except:
+                            error(f'Something wrong with uploading data to feeding service. Plan update for the next time')
+                        else:
+                            info(f'Data uploaded to feeding service successfully')
             
 # Taken from https://stackoverflow.com/questions/474528/what-is-the-best-way-to-repeatedly-execute-a-function-every-x-seconds/49801719#49801719
 def every(delay, task):
@@ -540,11 +576,11 @@ bg_task.start()
 
 while True:
     try:
-        with open(f'{SNAPSHOT_DIR}/{SNAPSHOT_FILE}', 'r') as json_file:
+        with open(f'{SNAPSHOT_DIR}/{CHAIN_SELECTOR}-{SNAPSHOT_FILE_SUFIX}', 'r') as json_file:
             snapshot = load(json_file)
     except IOError:
-        info(f'No snapshot {SNAPSHOT_FILE} found')
-        last_block = make_web3_call(plg_w3.eth.getBlock, 'latest').number - FINALIZATION_DELAY
+        info(f'No snapshot {CHAIN_SELECTOR}-{SNAPSHOT_FILE_SUFIX} found')
+        last_block = make_web3_call(plg_w3.eth.getBlock, 'latest').number - finalization_delay
         info(f'Initialize empty structure for snapshot with the block range {start_block} - {last_block}')
         snapshot = {
             "start_block": start_block,
@@ -554,21 +590,21 @@ while True:
 
     if len(snapshot['logs']) != 0:
         info(f'Identifying dump range to extend existing snapshot')
-        dump_range = (snapshot['last_block'] + 1, make_web3_call(plg_w3.eth.getBlock, 'latest').number - FINALIZATION_DELAY)
+        dump_range = (snapshot['last_block'] + 1, make_web3_call(plg_w3.eth.getBlock, 'latest').number - finalization_delay)
         info(f'Dump range: {dump_range[0]} - {dump_range[1]}')
     else:
         dump_range = (start_block, last_block)
 
     try:
         logs = get_logs([buy_event_filter, sell_event_filter, swap_event_filter], dump_range[0], dump_range[1])
-    except:
-        error(f'Cannot collect new logs. Interrupt stats collecting for the next time')
+    except Exception as e:
+        error(f'Cannot collect new logs ({e}). Interrupt stats collecting for the next time')
     else:
         snapshot['logs'].extend(logs)
         snapshot['last_block'] = dump_range[1]
 
     info(f'Saving snapshot')
-    with open(f'{SNAPSHOT_DIR}/{SNAPSHOT_FILE}', 'w') as json_file:
+    with open(f'{SNAPSHOT_DIR}/{CHAIN_SELECTOR}-{SNAPSHOT_FILE_SUFIX}', 'w') as json_file:
         dump(snapshot, json_file)
 
     ## start of part related to uploading CG data
@@ -577,7 +613,7 @@ while True:
     info(f'Transform snapshot for usage by CG (24h interval: {now_minus_24h} - {now})')
     cg = bobvault_data_for_coingecko(snapshot, now_minus_24h, now)
     info(f'Saving CG data snapshot')
-    with open(f'{SNAPSHOT_DIR}/{COINGECKO_SNAPSHOT_FILE}', 'w') as json_file:
+    with open(f'{SNAPSHOT_DIR}/{CHAIN_SELECTOR}-{COINGECKO_SNAPSHOT_FILE_SUFIX}', 'w') as json_file:
         dump(cg, json_file)
     info(f'Uploading data to feeding service')
     try: 

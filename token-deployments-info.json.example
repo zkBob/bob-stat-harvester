@@ -5,13 +5,20 @@
       "finalization": 100,
       "events_pull_interval": 600,
       "rpc":{
-        "url":"https://rpc.ankr.com/bsc"
+        "url":"https://rpc.ankr.com/bsc",
+        "history_block_range": 3000
       },
       "inventories":[
         {
           "protocol":"KyberSwap Elastic",
           "pos_manager":"0x2b1c7b41f6a8f2b2bc45c3233a5d5fb3cd6dc9a8",
           "owner":"0xd4a3D9Ca00fa1fD8833D560F9217458E61c446d8"
+        },
+        {
+          "protocol":"BobVault",
+          "address":"0x61a57F1C82DA40e632C075D7812Af375Db23367c",
+          "start_block":"26230002",
+          "feeding_service_path":"/bsc/upload"
         }
       ],
       "token":{
@@ -23,7 +30,8 @@
       "finalization": 100,
       "events_pull_interval": 600,
       "rpc":{
-        "url":"https://polygon-rpc.com"
+        "url":"https://polygon-rpc.com",
+        "history_block_range": 3000
       },
       "inventories":[
         {
@@ -33,8 +41,10 @@
         },
         {
           "protocol":"BobVault",
-          "address":"0x25e6505297b44f4817538fb2d91b88e1cf841b54"
-        }
+          "address":"0x25e6505297b44f4817538fb2d91b88e1cf841b54",
+          "start_block":"36750276",
+          "feeding_service_path":"/polygon/upload"
+          }
       ],
       "token":{
         "start_block":"32845237"
@@ -42,16 +52,28 @@
     },
     "eth":{
       "name":"Mainnet",
-      "finalization": 32,
+      "finalization": 64,
       "events_pull_interval": 900,
       "rpc":{
-        "url":"https://mainnet.infura.io/v3/..."
+        "url":"https://mainnet.infura.io/v3/...",
+        "history_block_range": 10000
       },
       "inventories":[
         {
           "protocol":"UniswapV3",
           "pos_manager":"0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
           "owner":"0xd4a3D9Ca00fa1fD8833D560F9217458E61c446d8"
+        },
+        {
+          "protocol":"KyberSwap Elastic",
+          "pos_manager":"0x2b1c7b41f6a8f2b2bc45c3233a5d5fb3cd6dc9a8",
+          "owner":"0xd4a3D9Ca00fa1fD8833D560F9217458E61c446d8"
+        },
+        {
+          "protocol":"BobVault",
+          "address":"0x15729Ac1795Fa02448a55D206005dC1914144a9F",
+          "start_block":"16670785",
+          "feeding_service_path":"/mainnet/upload"
         }
       ],
       "token":{
@@ -60,20 +82,52 @@
     },
     "opt":{
       "name":"Optimism",
-      "finalization": 100,
+      "finalization": 300,
       "events_pull_interval": 300,
       "rpc":{
-        "url":"https://rpc.ankr.com/optimism"
+        "url":"https://opt-mainnet.g.alchemy.com/v2/...",
+        "history_block_range": 3000
       },
       "inventories":[
         {
           "protocol":"UniswapV3",
           "pos_manager":"0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
           "owner":"0x14fc6a1a996A2EB889cF86e5c8cD17323bC85290"
+        },
+        {
+          "protocol":"BobVault",
+          "address":"0x8aEb89D5C689C2cf373Fe8b56c7A0cD5BDc74CE6",
+          "start_block":"78856378",
+          "feeding_service_path":"/eth-opt/upload"
         }
       ],
       "token":{
         "start_block":"27627099"
+      }
+    },
+    "arb1":{
+      "name":"ArbitrumOne",
+      "finalization": 300,
+      "events_pull_interval": 300,
+      "rpc":{
+        "url":"https://arb1.arbitrum.io/rpc",
+        "history_block_range": 10000
+      },
+      "inventories":[
+        {
+          "protocol":"UniswapV3",
+          "pos_manager":"0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+          "owner":"0xd4a3D9Ca00fa1fD8833D560F9217458E61c446d8"
+        },
+        {
+          "protocol":"BobVault",
+          "address":"0x72e6B59D4a90ab232e55D4BB7ed2dD17494D62fB",
+          "start_block":"67246494",
+          "feeding_service_path":"/arbitrum1/upload"
+        }
+      ],
+      "token":{
+        "start_block":"66373989"
       }
     }
   }
