@@ -17,7 +17,7 @@ The sources for the stats:
 
 It assumes that the corresponding BigQuery project was created and an access key to update dataset was issued and stored in /some/path/to/biguery.key.json
 
-1. Copy `token-deployments-info.json.example` to `token-deployments-info.json` and update `/chains/.../rpc/url` with proper endpoints.
+1. Copy `token-deployments-info.json.example` to `token-deployments-info.json` and update `/chains/.../rpc/url` and `/chains/.../inventories/[protocol:BobVault]/feeding_service_path` with proper endpoints, 
 
 2. Copy `docker-compose.yml.example` to `docker-compose.yml`.
 
