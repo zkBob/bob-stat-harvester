@@ -50,7 +50,9 @@ exchanges_to_chains = {'uniswap_v3_polygon_pos': 'pol',
                        'wombat': 'bsc',
                        'uniswap_v3_optimism': 'opt',
                        'kyberswap_elastic_optimism': 'opt',
-                       'velodrome': 'opt'
+                       'velodrome': 'opt',
+                       'uniswap_v3_arbitrum': 'arb1',
+                       'kyberswap_elastic_arbitrum': 'arb1'
                       }
 
 ABI_UNIV3_PM = "abi/uniswapv3_pm.json"
@@ -61,7 +63,7 @@ ABI_ERC20 = "abi/erc20.json"
 
 TOKEN_DEPLOYMENTS_INFO = getenv('TOKEN_DEPLOYMENTS_INFO', 'token-deployments-info.json')
 SNAPSHOT_DIR = getenv('SNAPSHOT_DIR', '.')
-BOBVAULT_SNAPSHOT_FILE = getenv('BOBVAULT_SNAPSHOT_FILE', 'bobvault-snaphsot.json')
+BOBVAULT_SNAPSHOT_FILE_SUFIX = getenv('BOBVAULT_SNAPSHOT_FILE_SUFIX', 'bobvault-snaphsot.json')
 BALANCES_SNAPSHOT_FILE_SUFFIX = getenv('BALANCES_SNAPSHOT_FILE_SUFFIX', 'bob-holders-snaphsot.json')
 UPDATE_BIGQUERY = getenv('UPDATE_BIGQUERY', 'true')
 BIGQUERY_AUTH_JSON_KEY = getenv('BIGQUERY_AUTH_JSON_KEY', 'bigquery-key.json')
@@ -90,7 +92,7 @@ else:
 
 info(f'TOKEN_DEPLOYMENTS_INFO = {TOKEN_DEPLOYMENTS_INFO}')
 info(f'SNAPSHOT_DIR = {SNAPSHOT_DIR}')
-info(f'BOBVAULT_SNAPSHOT_FILE = {BOBVAULT_SNAPSHOT_FILE}')
+info(f'BOBVAULT_SNAPSHOT_FILE_SUFIX = {BOBVAULT_SNAPSHOT_FILE_SUFIX}')
 info(f'BALANCES_SNAPSHOT_FILE_SUFFIX = {BALANCES_SNAPSHOT_FILE_SUFFIX}')
 info(f'UPDATE_BIGQUERY = {UPDATE_BIGQUERY}')
 info(f'BIGQUERY_AUTH_JSON_KEY = {BIGQUERY_AUTH_JSON_KEY}')
@@ -118,8 +120,9 @@ info(f'FEEDING_SERVICE_MONITOR_ATTEMPTS_FOR_INFO = {FEEDING_SERVICE_MONITOR_ATTE
 try:
     with open(f'{TOKEN_DEPLOYMENTS_INFO}') as f:
         chains = load(f)['chains']
-except IOError:
-    raise BaseException(f'Cannot get {BOB_TOKEN_SYMBOL} deployment info')
+except IOError as e:
+    error(f'Cannot get {BOB_TOKEN_SYMBOL} deployment info')
+    raise e
 info(f'Stats will be gathered for chains: {list(chains.keys())}')
 
 if UPDATE_BIGQUERY:
@@ -511,19 +514,22 @@ def get_bobvault_volume_for_timeframe(logs, ts_start, ts_end):
     return volume_tf
 
 def get_bobvault_volume_24h():
-    vol = 0.0
-    try:
-        with open(f'{SNAPSHOT_DIR}/{BOBVAULT_SNAPSHOT_FILE}', 'r') as json_file:
-            snapshot = load(json_file)
-    except IOError:
-        error(f'No snapshot {BOBVAULT_SNAPSHOT_FILE} found')
-    else:
-        info(f'Collecting 24h volume from bobvault snapshot')
-        now = int(time())
-        now_minus_24h = now - ONE_DAY
-        vol = get_bobvault_volume_for_timeframe(snapshot['logs'], now_minus_24h, now)
-        info(f'Discovered volume: {vol}')
-    return {'pol': vol}
+    ret = {}
+    for chainid in chains:
+        vol = 0.0
+        try:
+            with open(f'{SNAPSHOT_DIR}/{chainid}-{BOBVAULT_SNAPSHOT_FILE_SUFIX}', 'r') as json_file:
+                snapshot = load(json_file)
+        except IOError:
+            error(f'No snapshot {chainid}-{BOBVAULT_SNAPSHOT_FILE_SUFIX} found')
+        else:
+            info(f'Collecting 24h volume from bobvault snapshot on {chain_names[chainid]}')
+            now = int(time())
+            now_minus_24h = now - ONE_DAY
+            vol = get_bobvault_volume_for_timeframe(snapshot['logs'], now_minus_24h, now)
+            info(f'Discovered volume on {chain_names[chainid]}: {vol}')
+        ret.update({chainid: vol})
+    return ret
 
 def get_bob_holders_amount(_chain):
     info(f'Getting token holders for {_chain}')
@@ -634,7 +640,7 @@ def get_data_from_db(_required_ts):
             if composed_db.contains(query_left & query_right):
                 break
 
-            if left_dt < earliest_point:
+            if left_dt.astimezone(earliest_point.tzinfo) < earliest_point:
                 error(f'no data found in {BOB_COMPOSED_STAT_DB}')
                 return []
 
