@@ -78,7 +78,8 @@ class BobStatsConnector(BaseConnector):
                 f'{self._service_url}{self._upload_path}',
                 data=data_as_str,
                 headers={'Content-Type': 'application/json'},
-                auth=self._bearer_auth
+                auth=self._bearer_auth,
+                timeout=(3.05, 27)
             )
         except Exception as e:
             error(f'connector: something wrong with uploading stats to feeding service: {e}')
@@ -93,7 +94,7 @@ class BobStatsConnector(BaseConnector):
     def check_data_availability(self) -> DACheckResults:
         ret = DACheckResults(accessible=False, available=False)
         try:
-            r = requests.get(f'{self._service_url}{self._health_path}')
+            r = requests.get(f'{self._service_url}{self._health_path}', timeout=(3.05, 27))
         except IOError as e :
             error(f'connector: cannot get feeding service health status: {e}')
         except ValueError as e :
