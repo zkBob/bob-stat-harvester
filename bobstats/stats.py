@@ -42,9 +42,9 @@ class Stats:
 
     def _collect(self) -> RawStatsData:
         ts = self._supply.get_total_supply()
-        inv = self._inventory.get_inventory()
-        hldrs = self._holders.get_bob_holders_amount()
-        vol = self._volume.get_volume()
+        inv = self._inventory.get_inventory() if len(ts) != 0 else {}
+        hldrs = self._holders.get_bob_holders_amount() if len(inv) != 0 else {}
+        vol = self._volume.get_volume() if len(hldrs) != 0 else {}
 
         if (len(ts) == 0) or \
            (len(inv) == 0) or \
