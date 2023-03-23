@@ -5,9 +5,6 @@ services:
     image: ghcr.io/zkbob/bob-stat-harvester:${RELAYER_IMAGE:-latest}
     container_name: main-harvester
     environment:
-        - BIGQUERY_PROJECT=some-project
-        - BIGQUERY_DATASET=some-dataset
-        - BIGQUERY_TABLE=some-table
         - MEASUREMENTS_INTERVAL=7170
         - SNAPSHOT_DIR=snapshots
         - TSDB_DIR=tsdb
@@ -17,7 +14,6 @@ services:
         - FEEDING_SERVICE_UPLOAD_TOKEN=@uth70ken
     volumes:
         - ./token-deployments-info.json:/app/token-deployments-info.json
-        - ./bigquery-key.json:/app/bigquery-key.json
         - ./snapshots:/app/snapshots
         - ./tsdb:/app/tsdb
     restart: unless-stopped

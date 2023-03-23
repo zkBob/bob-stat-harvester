@@ -1,7 +1,7 @@
-BOB tokans statistics harvester
+BOB tokens statistics harvester
 ====
 
-This service on regualar basis sends requests to blockchains and CoinGecko API to collect BOB token stats on different chain, keeps it in a local timeseries database and publishes the stats. The service supports the Google BigQuery DB and [the BOB token stats server](https://github.com/zkBob/bob-circulating-supply) for publishing the data.
+This service on regualar basis sends requests to blockchains and CoinGecko API to collect BOB token stats on different chain, keeps it in a local timeseries database and publishes the stats on [the BOB token stats server](https://github.com/zkBob/bob-circulating-supply).
 
 The sources for the stats:
 
@@ -22,20 +22,14 @@ It assumes that the corresponding BigQuery project was created and an access key
 2. Copy `docker-compose.yml.example` to `docker-compose.yml`.
 
 3. Update the following environment variables in `docker-compose.yml`:
-    - `BIGQUERY_PROJECT`
-    - `BIGQUERY_DATASET`
-    - `BIGQUERY_TABLE`
     - `MEASUREMENTS_INTERVAL`
     - `SNAPSHOT_DIR`
     - `TSDB_DIR`
     - `FEEDING_SERVICE_URL`
     - `FEEDING_SERVICE_PATH`
-    - `FEEDING_SERVICE_HEALTH_PATH`
     - `FEEDING_SERVICE_UPLOAD_TOKEN`
 
-4. Update the origin path to the bigquery access key in `volumes` section of `docker-compose.yml`.
-
-5. Launch the service 
+4. Launch the service 
 
    ```bash
    docker compose up -d

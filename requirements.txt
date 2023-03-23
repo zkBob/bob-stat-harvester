@@ -1,3 +1,2 @@
 web3==5.31.1
-pandas-gbq==0.18.0
 tinyflux==0.2.3
