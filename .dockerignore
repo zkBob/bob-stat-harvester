@@ -10,3 +10,5 @@ README.md
 snapshots
 tsdb
 [^/]*.log
+.devcontainer
+**/*/__pycache__

@@ -23,6 +23,9 @@
       ],
       "token":{
         "start_block":"22709943"
+      },
+      "coingecko":{
+        "known":["kyberswap_elastic_bsc", "pancakeswap_new", "wombat", "uniswap-bsc"]
       }
     },
     "pol":{
@@ -48,6 +51,10 @@
       ],
       "token":{
         "start_block":"32845237"
+      },
+      "coingecko":{
+        "known":["uniswap_v3_polygon_pos", "kyberswap_elastic_polygon", "balancer_polygon"],
+        "exclude":["bobswap_polygon"]
       }
     },
     "eth":{
@@ -78,6 +85,9 @@
       ],
       "token":{
         "start_block":"15626757"
+      },
+      "coingecko":{
+        "known":["uniswap_v3", "quickswap_v3"]
       }
     },
     "opt":{
@@ -103,6 +113,9 @@
       ],
       "token":{
         "start_block":"27627099"
+      },
+      "coingecko":{
+        "known":["uniswap_v3_optimism", "kyberswap_elastic_optimism", "velodrome"]
       }
     },
     "arb1":{
@@ -128,6 +141,9 @@
       ],
       "token":{
         "start_block":"66373989"
+      },
+      "coingecko":{
+        "known":["uniswap_v3_arbitrum", "kyberswap_elastic_arbitrum"]
       }
     }
   }
