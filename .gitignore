@@ -5,3 +5,4 @@ docker-compose.yml
 snapshots
 tsdb
 [^/]*.log
+**/*/__pycache__
