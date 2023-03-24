@@ -8,7 +8,7 @@ from web3.eth import Contract
 
 from utils.abi import get_abi, ABI
 from utils.web3 import Web3Provider
-from utils.logging import info, debug
+from utils.logging import info, debug, error
 from utils.constants import ONE_DAY, TWO_POW_96
 
 from .common import fields_as_list, Position, UniswapLikePositionsManager, \
@@ -64,7 +64,7 @@ class KyberswapElasticPosition(Position):
             info(f'{w3prov.chainid}/{self.pos_id}: pair: {self.token0_addr}/{self.token1_addr}, liquidity {self.liquidity}')
             debug(f'{w3prov.chainid}/{self.pos_id}: pair: {raw_details}, {raw_pair}')
 
-        def get_tvl_for_postion():
+        def get_tvl_and_fees_for_postion():
             params = {
                 "tokenId": self.pos_id,
                 "liquidity": self.liquidity,
@@ -72,36 +72,33 @@ class KyberswapElasticPosition(Position):
                 "amount1Min": 0,
                 "deadline": int(time())+ ONE_DAY
             }
-            tvl_for_pair = w3prov.make_call(pos_manager.functions.removeLiquidity(params).call)
+            removeLiquidity_encoded = pos_manager.encodeABI(fn_name="removeLiquidity", args=[params])
+            del params["liquidity"]
+            burnRTokens_encoded = pos_manager.encodeABI(fn_name="burnRTokens", args=[params])
+
+            mc_retvall = w3prov.make_call(pos_manager.functions.multicall([
+                removeLiquidity_encoded,
+                burnRTokens_encoded
+            ]).call)
+            if len(mc_retvall) != 2:
+                error(f"{w3prov.chainid}/{self.pos_id}: KyberSwap's multicall returned unexpected value")
+                BaseException(f"KyberSwap's multicall returned unexpected value")
+
+            tvl_for_pair = w3prov.w3.codec.decode(["(uint256,uint256,uint256)"], mc_retvall[0])[0]
+            fees_for_pair = w3prov.w3.codec.decode(["(uint256,uint256,uint256)"], mc_retvall[1])[0]
+
             self.token0_tvl = tvl_for_pair[0]
             self.token1_tvl = tvl_for_pair[1]
-            self.additionalRTokenOwed = tvl_for_pair[2]
             info(f'{w3prov.chainid}/{self.pos_id}: pair: tvl: {self.token0_tvl, self.token1_tvl}')
-
-        def get_fees_for_postion():
-            # This approach cannot be used since removeLiquidity does not change state actually
-            # to update the position's rTokenOwed, so burnRTokens fails with 'no tokens to burn' 
-            # params = {"tokenId": pos_id,
-            #   "amount0Min": MAX_INT,
-            #   "amount1Min": MAX_INT,
-            #   "deadline": int(time())+ ONE_DAY
-            #  }
-            # fees_pair = position_manager.functions.burnRTokens(params).call()
-
-            sqrtPrice = w3prov.make_call(get_pool_contract().functions.getPoolState().call)[0]
-            reinvestTokens = self.rTokenOwed + self.additionalRTokenOwed
-            # Naive approach to calculate fees. It must be verified and tuned later when delta
-            # between actual fees and values below become obvious
-            self.token0_fees = reinvestTokens * (TWO_POW_96 / sqrtPrice) * (TWO_POW_96 / sqrtPrice)
-            self.token1_fees = reinvestTokens * (sqrtPrice / TWO_POW_96) * (sqrtPrice / TWO_POW_96)
+            self.token0_fees = fees_for_pair[1]
+            self.token1_fees = fees_for_pair[2]
             info(f'{w3prov.chainid}/{self.pos_id}: pair: fees: {self.token0_fees, self.token1_fees}')
 
         self.pos_id = w3prov.make_call(pos_manager.functions.tokenOfOwnerByIndex(pos_owner, idx).call)
         info(f'{w3prov.chainid}: intialising position {self.pos_id}')
         get_postion_raw_details()
         if self.liquidity != 0:
-            get_tvl_for_postion()
-            get_fees_for_postion()
+            get_tvl_and_fees_for_postion()
         else:
             info(f'{w3prov.chainid}: position {self.pos_id} does not contain liquidity')
 
