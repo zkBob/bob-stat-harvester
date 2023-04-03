@@ -396,21 +396,25 @@ def bobvault_data_for_coingecko(snapshot, ts_start, ts_end):
                 'trades': {'buy': [], 'sell': []}
             }
             info(ticker_id)
-        price = target_volume / base_volume
+        if base_volume != 0:
+            price = target_volume / base_volume
+        else:
+            price = 0
             
         if (trade['timestamp'] >= ts_start) and (trade['timestamp'] < ts_end):
             cg_data[ticker_id]['base_volume'] += base_volume
             cg_data[ticker_id]['target_volume'] += target_volume
-            if action_type == 'buy':
-                if price > cg_data[ticker_id]['high_buy']:
-                    cg_data[ticker_id]['high_buy'] = price
-                if price < cg_data[ticker_id]['low_buy']:
-                    cg_data[ticker_id]['low_buy'] = price
-            if action_type == 'sell':
-                if price > cg_data[ticker_id]['high_sell']:
-                    cg_data[ticker_id]['high_sell'] = price
-                if price < cg_data[ticker_id]['low_sell']:
-                    cg_data[ticker_id]['low_sell'] = price
+            if price != 0:
+                if action_type == 'buy':
+                    if price > cg_data[ticker_id]['high_buy']:
+                        cg_data[ticker_id]['high_buy'] = price
+                    if price < cg_data[ticker_id]['low_buy']:
+                        cg_data[ticker_id]['low_buy'] = price
+                if action_type == 'sell':
+                    if price > cg_data[ticker_id]['high_sell']:
+                        cg_data[ticker_id]['high_sell'] = price
+                    if price < cg_data[ticker_id]['low_sell']:
+                        cg_data[ticker_id]['low_sell'] = price
         xtrade = {
             'trade_id': (trade['blockNumber'] - snapshot['start_block']) * (max_log_index + 1) + trade['logIndex'],
             'price' : gc_encode(price),
