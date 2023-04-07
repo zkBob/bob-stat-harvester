@@ -18,7 +18,9 @@ class BobVaultInventory(BaseModel):
     protocol: str
     address: str
     start_block: int
+    coingecko_poolid: str
     feeding_service_path: str
+    feeding_service_health_container: str
 
 class CoinGeckoMarkets(BaseModel):
     known: Optional[List[str]]
