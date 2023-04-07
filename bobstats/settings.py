@@ -15,10 +15,15 @@ class Settings(FeedingServiceSettings):
     bigquery_project: str = 'some-project'
     bigquery_dataset: str = 'some-dashboard'
     bigquery_table: str = 'some-table'
+    feeding_service_path: str = '/'
+    snapshot_dir: str = '.'
+    bobvault_snapshot_file_suffix: str = 'bobvault-snaphsot.json'
+    balances_snapshot_file_suffix: str = 'bob-holders-snaphsot.json'
     coingecko_retry_attempts: int = 2
     coingecko_retry_delay: int = 5
     coingecko_include_anomalies: bool = True
     max_workers: int = 5
+    tsdb_dir: str = '.'
     bob_composed_stat_db: str = 'bobstat_composed.csv'
     bob_composed_fees_stat_db: str = 'bobstat_comp_fees.csv'
     w3_providers: dict = {}

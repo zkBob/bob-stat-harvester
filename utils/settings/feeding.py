@@ -2,7 +2,6 @@ from .common import CommonSettings
 
 class FeedingServiceSettings(CommonSettings):
     feeding_service_url: str = 'http://127.0.0.1:8080'
-    feeding_service_path: str = '/'
     feeding_service_health_path: str = '/health'
     feeding_service_upload_token: str = 'default'
     feeding_service_monitor_interval: int = 60
