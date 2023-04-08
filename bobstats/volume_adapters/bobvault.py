@@ -48,7 +48,7 @@ def _get_bobvault_volume_for_timeframe(chainid, logs, ts_start, ts_end):
                 break
     return volume_tf
 
-class BobVault(GenericVolumeAdapter):
+class VolumeOnBobVault(GenericVolumeAdapter):
     _snapshot_dir: str
     _file_suffix: str
     _chainids: List[str]
