@@ -7,13 +7,13 @@ from .settings import Settings
 
 from .volume_adapters.common import GenericVolumeAdapter
 from .volume_adapters.coingecko import VolumeOnCoinGecko
-from .volume_adapters.bobvault import VolumeOnBobVault
+from .volume_adapters.bobvault import VolumeOnBobVaults
 
 class Volume:
     _adapters: List[GenericVolumeAdapter]
 
     def __init__(self, settings: Settings):
-        self._adapters = [VolumeOnCoinGecko(settings), VolumeOnBobVault(settings)]
+        self._adapters = [VolumeOnCoinGecko(settings), VolumeOnBobVaults(settings)]
 
     def get_volume(self) -> Dict[str, Decimal]:
         info(f'Getting 24h volume')
