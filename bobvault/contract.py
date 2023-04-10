@@ -85,18 +85,15 @@ class BobVaultContract:
             "blockNumber": pl.blockNumber
         }
         l["timestamp"] = self._w3prov.make_call(self._w3prov.w3.eth.get_block, blockhash).timestamp
-        if not "timestamp" in l:
-            raise BaseException(f'Timestamp cannot be set for block {blockhash}')
-        return l
 
     def get_logs_for_range(self, from_block, to_block) -> dict:
-        info(f'Looking for events within [{from_block}, {to_block}]')
+        info(f'bv_contract:{self._w3prov.chainid}: looking for events within [{from_block}, {to_block}]')
         logs = []
         for b in range(from_block, to_block, self._block_range + 1):
             start_block = b
             finish_block = min(b + self._block_range, to_block)
             if (from_block != start_block) or (to_block != finish_block):
-                info(f'Looking for events within a smaler range [{start_block}, {finish_block}]')
+                info(f'bv_contract:{self._w3prov.chainid}: looking for events within a smaler range [{start_block}, {finish_block}]')
             vault_logs = []
             for efilter in self._get_filters():
                 bss_logs = self._w3prov.make_call(
@@ -109,9 +106,9 @@ class BobVaultContract:
                     }
                 )
                 len_bss_logs = len(bss_logs)
-                info(f"Found {len_bss_logs} of {efilter.event_abi['name']} events")
+                info(f"bv_contract:{self._w3prov.chainid}: found {len_bss_logs} of {efilter.event_abi['name']} events")
                 if len_bss_logs > 0:
                     vault_logs.extend(bss_logs)
             logs.extend([self.process_log(l) for l in vault_logs])
-        info(f'Collected {len(logs)} events')
+        info(f'bv_contract:{self._w3prov.chainid}: collected {len(logs)} events')
         return logs

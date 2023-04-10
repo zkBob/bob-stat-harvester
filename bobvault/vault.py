@@ -43,7 +43,7 @@ class BobVault(BaseBobVault):
             start_block = self._contract.start_block
             last_block = self._w3prov.make_call(self._w3prov.w3.eth.getBlock, 'latest').number
             last_block -= self._finalization_delay
-            info(f'Initialize empty structure for snapshot with the block range {start_block} - {last_block}')
+            info(f'bobvault:{self._chainid}: initialize empty structure for snapshot with the block range {start_block} - {last_block}')
             snapshot.update({
                 'start_block': start_block,
                 'last_block': last_block,
@@ -51,18 +51,18 @@ class BobVault(BaseBobVault):
         return snapshot
 
     def _save(self, snapshot):
-        info(f'Saving snapshot')
+        info(f'bobvault:{self._chainid}: saving snapshot')
         with open(self._full_filename, 'w') as json_file:
             dump(snapshot, json_file, cls=CustomJSONEncoder)
 
     def _get_dump_range(self, prev_start_block: int, prev_last_block, first_time: bool) -> Tuple[int, int]:
         if not first_time:
-            info(f'Identifying dump range to extend existing snapshot')
+            info(f'bobvault:{self._chainid}: identifying dump range to extend existing snapshot')
             dump_range = (
                 prev_last_block + 1,
                 self._w3prov.make_call(self._w3prov.w3.eth.getBlock, 'latest').number - self._finalization_delay
             )
-            info(f'Dump range: {dump_range[0]} - {dump_range[1]}')
+            info(f'bobvault:{self._chainid}: dump range: {dump_range[0]} - {dump_range[1]}')
         else:
             dump_range = (prev_start_block, prev_last_block)
         return dump_range
@@ -79,7 +79,7 @@ class BobVault(BaseBobVault):
         try:
             logs = self._contract.get_logs_for_range(dump_range[0], dump_range[1])
         except Exception as e:
-            error(f'Cannot collect new logs ({e})')
+            error(f'bobvault:{self._chainid}: cannot collect new logs ({e})')
             return False
         else:
             snapshot['logs'].extend(logs)
