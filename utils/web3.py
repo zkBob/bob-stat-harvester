@@ -9,7 +9,6 @@ from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 from web3.eth import Contract
 
-from .settings.common import CommonSettings
 from .logging import info, error
 from .abi import get_abi, ABI
 
