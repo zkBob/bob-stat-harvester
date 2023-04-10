@@ -12,6 +12,7 @@ class ABI(Enum):
     KYBERSWAP_PM = "kyberswap_elastic_pm.json"
     KYBERSWAP_FACTORY = "kyberswap_elastic_factory.json"
     KYBERSWAP_POOL = "kyberswap_elastic_pool.json"
+    BOBVAULT = "bobvault.json"
 
 @cache
 def get_abi(fname: ABI) -> dict:
