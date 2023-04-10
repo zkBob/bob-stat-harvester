@@ -1,9 +1,4 @@
-from functools import cache
-
-from typing import Any, Dict
-from pydantic import BaseSettings
-
-from json import load
+from typing import Dict
 
 from utils.settings.feeding import FeedingServiceSettings
 from utils.logging import info, error
