@@ -1,4 +1,4 @@
-from time import time, sleep
+from time import time
 
 from bobstats.settings import Settings
 from bobstats.stats import Stats
