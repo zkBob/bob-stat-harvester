@@ -13,6 +13,10 @@ from .logging import info, error
 from .abi import get_abi, ABI
 
 class Web3Provider:
+    chainid: str
+    w3: Web3
+    _retry_attemtps: int
+    _retry_delay: int
 
     def __init__(
         self,
