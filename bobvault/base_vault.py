@@ -6,13 +6,13 @@ from json import load
 from utils.logging import info, debug, error
 from utils.constants import BOB_TOKEN_ADDRESS, ONE_DAY
 
+from .models import BobVaultTradesSnapshot
+
 class BaseBobVault:
-    _snapshot_dir: str
     _full_filename: str
     _chainid: str
 
     def __init__(self, chainid: str, snapshot_dir: str, snapshot_suffix: str):
-        self._snapshot_dir = snapshot_dir
         self._full_filename = f'{snapshot_dir}/{chainid}-{snapshot_suffix}'
         self._chainid = chainid
 
@@ -24,8 +24,8 @@ class BaseBobVault:
         no_error = True
         while no_error:
             debug(f'bobvault:{self._chainid}: binary search: {prev_indices} - {first_index}')
-            if (logs[first_index]['timestamp'] >= ts_start):
-                if (first_index == 0) or (logs[first_index-1]['timestamp'] < ts_start):
+            if (logs[first_index].timestamp >= ts_start):
+                if (first_index == 0) or (logs[first_index-1].timestamp < ts_start):
                     break
                 else:
                     prev_indices[1] = first_index
@@ -40,15 +40,15 @@ class BaseBobVault:
             info(f'bobvault:{self._chainid}: no events for last required time frame')
         else:
             for trade in logs[first_index:]:
-                if trade['timestamp'] < ts_end:
-                    if trade['args']['inToken'] == BOB_TOKEN_ADDRESS:
-                        trade_volume = trade['args']['amountIn']
-                    elif trade['args']['outToken'] == BOB_TOKEN_ADDRESS:
-                        trade_volume = trade['args']['amountOut']
+                if trade.timestamp < ts_end:
+                    if trade.args.inToken == BOB_TOKEN_ADDRESS:
+                        trade_volume = trade.args.amountIn
+                    elif trade.args.outToken == BOB_TOKEN_ADDRESS:
+                        trade_volume = trade.args.amountOut
                     else:
                         info(f'bobvault:{self._chainid}: swap operations skipped')
                         trade_volume = 0
-                    volume_tf += Decimal(trade_volume)
+                    volume_tf += trade_volume
                 else:
                     break
         return volume_tf
@@ -57,14 +57,15 @@ class BaseBobVault:
         info(f'bobvault:{self._chainid}: looking for snapshot {self._full_filename}')
         try:
             with open(self._full_filename, 'r') as json_file:
-                snapshot = load(json_file)
+                data = ''.join(json_file.readlines())
+                snapshot = BobVaultTradesSnapshot.parse_raw(data)
         except IOError:
             error(f'bobvault:{self._chainid}: snapshot not found')
-            snapshot = {"logs": []}
+            snapshot = BobVaultTradesSnapshot()
         return snapshot
 
     def _get_logs_from_snapshot(self) -> dict:
-        return self._load()['logs'] 
+        return self._load().logs
 
     def get_volume_24h(self) -> Decimal:
         vol = Decimal(0)

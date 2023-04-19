@@ -1,5 +1,7 @@
 from functools import cache
 
+from decimal import Decimal
+
 from web3 import Web3
 from web3.eth import Contract
 
@@ -8,6 +10,9 @@ from utils.web3 import Web3Provider, ERC20Token
 from utils.abi import get_abi, ABI
 from utils.constants import BOB_TOKEN_ADDRESS
 
+from .models import TradeArgs, BobVaultTrade, BobVaultCollateral
+
+@cache
 class BobVaultContract:
     start_block: int
     _w3prov: Web3Provider
@@ -22,7 +27,11 @@ class BobVaultContract:
         )
         self.start_block = start_block
         self._block_range = block_range
-    
+
+    @cache
+    def address(self) -> str:
+        return self._contract.address
+
     @cache
     def _get_filters(self) -> list:
         return [
@@ -35,28 +44,28 @@ class BobVaultContract:
     def _get_event_decoders(self) -> dict:
         def buy_decoder(l):
             pl = self._contract.events.Buy().processLog(l)
-            return pl, {
-                        "inToken": pl.args.token,
-                        "outToken": BOB_TOKEN_ADDRESS,
-                        "amountIn": ERC20Token(self._w3prov, pl.args.token).normalize(pl.args.amountIn),
-                        "amountOut": ERC20Token(self._w3prov, BOB_TOKEN_ADDRESS).normalize(pl.args.amountOut)
-                    }
+            return pl, TradeArgs(
+                        inToken=pl.args.token,
+                        outToken=BOB_TOKEN_ADDRESS,
+                        amountIn=ERC20Token(self._w3prov, pl.args.token).normalize(pl.args.amountIn),
+                        amountOut=ERC20Token(self._w3prov, BOB_TOKEN_ADDRESS).normalize(pl.args.amountOut)
+            )
         def sell_decoder(l):
             pl = self._contract.events.Sell().processLog(l)
-            return pl, {
-                        "inToken": BOB_TOKEN_ADDRESS,
-                        "outToken": pl.args.token,
-                        "amountIn": ERC20Token(self._w3prov, BOB_TOKEN_ADDRESS).normalize(pl.args.amountIn),
-                        "amountOut": ERC20Token(self._w3prov, pl.args.token).normalize(pl.args.amountOut)
-                    }
+            return pl, TradeArgs(
+                        inToken=BOB_TOKEN_ADDRESS,
+                        outToken=pl.args.token,
+                        amountIn=ERC20Token(self._w3prov, BOB_TOKEN_ADDRESS).normalize(pl.args.amountIn),
+                        amountOut=ERC20Token(self._w3prov, pl.args.token).normalize(pl.args.amountOut)
+            )
         def swap_decoder(l):
             pl = self._contract.events.Swap().processLog(l)
-            return pl, {
-                        "inToken": pl.args.inToken,
-                        "outToken": pl.args.outToken,
-                        "amountIn": ERC20Token(self._w3prov, pl.args.inToken).normalize(pl.args.amountIn),
-                        "amountOut": ERC20Token(self._w3prov, pl.args.outToken).normalize(pl.args.amountOut)
-                    }
+            return pl, TradeArgs(
+                        inToken=pl.args.inToken,
+                        outToken=pl.args.outToken,
+                        amountIn=ERC20Token(self._w3prov, pl.args.inToken).normalize(pl.args.amountIn),
+                        amountOut=ERC20Token(self._w3prov, pl.args.outToken).normalize(pl.args.amountOut)
+            )
 
         efilters = self._get_filters()
         buyTopic = efilters[0].event_topic
@@ -75,16 +84,17 @@ class BobVaultContract:
         event_name = with_events[event_topic][1]
         pl, pl_args = event_handler(log_rec)
         blockhash = Web3.toHex(pl.blockHash)
-        l = {
-            "name": event_name,
-            "args": pl_args,
-            "logIndex": pl.logIndex,
-            "transactionIndex": pl.transactionIndex,
-            "transactionHash": Web3.toHex(pl.transactionHash),
-            "blockHash": blockhash,
-            "blockNumber": pl.blockNumber
-        }
-        l["timestamp"] = self._w3prov.make_call(self._w3prov.w3.eth.get_block, blockhash).timestamp
+        l = BobVaultTrade(
+            name=event_name,
+            args=pl_args,
+            logIndex=pl.logIndex,
+            transactionIndex=pl.transactionIndex,
+            transactionHash=Web3.toHex(pl.transactionHash),
+            blockHash=blockhash,
+            blockNumber=pl.blockNumber,
+            timestamp=self._w3prov.make_call(self._w3prov.w3.eth.get_block, blockhash).timestamp
+        )
+        return l
 
     def get_logs_for_range(self, from_block, to_block) -> dict:
         info(f'bv_contract:{self._w3prov.chainid}: looking for events within [{from_block}, {to_block}]')
@@ -112,3 +122,21 @@ class BobVaultContract:
             logs.extend([self.process_log(l) for l in vault_logs])
         info(f'bv_contract:{self._w3prov.chainid}: collected {len(logs)} events')
         return logs
+
+    def get_collateral(self, token: str, bn: int = -1) -> BobVaultCollateral:
+        info(f'bv_contract:{self._w3prov.chainid}: getting collateral info for {token}')
+        if bn == -1:
+            resp = self._w3prov.make_call(self._contract.functions.collateral(token).call)
+        else:
+            resp = self._w3prov.make_call(self._contract.functions.collateral(token).call, block_identifier=bn)
+        reval = BobVaultCollateral(
+            balance=resp[0],
+            buffer=resp[1],
+            dust=resp[2],
+            yield_addr=resp[3],
+            price=resp[4],
+            inFee=resp[5],
+            outFee=resp[6]
+        )
+        info(f'bv_contract:{self._w3prov.chainid}: collateral info is: {reval}')
+        return reval
