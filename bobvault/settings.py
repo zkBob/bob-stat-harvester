@@ -8,7 +8,7 @@ class Settings(FeedingServiceSettings):
     chain_selector: str = 'pol'
     snapshot_dir: str = '.'
     snapshot_file_suffix: str = 'bobvault-snaphsot.json'
-    coingecko_file_suffix: str = 'bob-holders-snaphsot.json'
+    coingecko_file_suffix: str = 'bobvault-coingecko-data.json'
     w3_providers: dict = {}
 
     def __init__(self):
