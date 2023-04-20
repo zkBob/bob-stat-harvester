@@ -7,7 +7,7 @@ from time import time
 import requests
 from json import dumps
 
-from feeding.connector import BaseConnector
+from feeding.connector import UploadingConnector
 
 from utils.logging import info, error, warning
 from utils.models import TimestampedBaseModel
@@ -67,29 +67,12 @@ def prepare_data_for_feeding(stats: StatsByChains, db: DBAdapter) -> BobStatsDat
         previous = prev
     )
 
-class BobStatsConnector(BaseConnector):
+class BobStatsConnector(UploadingConnector):
 
     def upload_bobstats(self, data: BobStatsDataForTwoPeriods) -> bool:
         data_as_str = dumps(data.dict(), cls=CustomJSONEncoder)
-        info(f'connector: uploading stats to feeding service')
 
-        try:
-            r = requests.post(
-                f'{self._service_url}{self._upload_path}',
-                data=data_as_str,
-                headers={'Content-Type': 'application/json'},
-                auth=self._bearer_auth,
-                timeout=(3.05, 27)
-            )
-        except Exception as e:
-            error(f'connector: something wrong with uploading stats to feeding service: {e}')
-            return False
-        else:
-            if r.status_code != 200:
-                error(f'connector: cannot upload stats (status code: {r.status_code}, error: {r.text})')
-                return False
-        info(f'connector: stats uploaded to feeding service successfully')
-        return True
+        return self._upload(data_as_str)
 
     def check_data_availability(self) -> DACheckResults:
         ret = DACheckResults(accessible=False, available=False)
