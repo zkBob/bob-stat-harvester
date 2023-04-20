@@ -9,10 +9,10 @@ from utils.logging import info
 from utils.constants import ONE_DAY, BOB_TOKEN_ADDRESS, ONE_ETHER
 from utils.misc import CustomJSONEncoder
 
-from ..contract import BobVaultContract
-from ..settings import Settings
-from ..abs_processor import BobVaultLogsProcessor
-from ..models import BobVaultTrade, BobVaultCollateral
+from bobvault.contract import BobVaultContract
+from bobvault.settings import Settings
+from bobvault.abs_processor import BobVaultLogsProcessor
+from bobvault.models import BobVaultTrade, BobVaultCollateral
 
 from .models import PairOrderbookModel, PairTradesModel, PairDataModelInterim, \
                     BobVaultTradeModel, BobVaultDataModel
