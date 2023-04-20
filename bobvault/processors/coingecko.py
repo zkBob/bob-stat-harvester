@@ -17,16 +17,11 @@ from ..models import BobVaultTrade, BobVaultCollateral
 from .models import PairOrderbookModel, PairTradesModel, PairDataModelInterim, \
                     BobVaultTradeModel, BobVaultDataModel
 
-DEFAULT_SMALL_VALUE = Decimal(0)
+ZERO = Decimal("0.0")
+DEFAULT_SMALL_VALUE = ZERO
 DEFAULT_BIG_VALUE = Decimal(10 ** 9)
-ONE = Decimal(1.0)
-
-# def gc_encode(obj):
-#     if type(obj) == int:
-#         return str(obj)
-#     if type(obj) == float:
-#         return str(obj)
-#     return obj
+ONE = Decimal("1.0")
+TEN = Decimal("10.0")
 
 class CoinGeckoAdapter(BobVaultLogsProcessor):
     _chainid: str
@@ -78,7 +73,7 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
         return True
 
     def _new_pair_init(self, ticker_id: str, base: Tuple[str, str], target: Tuple[str, str]):
-        ob_template = PairOrderbookModel(bids=[[0, 0]], asks=[[0, 0]])
+        ob_template = PairOrderbookModel(bids=[[0.0, 0.0]], asks=[[0.0, 0.0]])
         tr_template = PairTradesModel(buy=[], sell=[])
         self._cg_data[ticker_id] = PairDataModelInterim(
             pool_id=self._pool_id,
@@ -86,14 +81,14 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
             target_address=target[0],
             base_currency=base[1],
             target_currency=target[1],
-            timestamp=0, # receive from timestamp of the last_block
-            last_price=0, # receive from the last trade
-            base_volume=0,
-            target_volume=0,
-            bid=0, # receive from bobvault based on fees
-            ask=0, # receive from bobvault based on fees
-            high=0,
-            low=0,
+            timestamp=0.0, # receive from timestamp of the last_block
+            last_price=0.0, # receive from the last trade
+            base_volume=0.0,
+            target_volume=0.0,
+            bid=0.0, # receive from bobvault based on fees
+            ask=0.0, # receive from bobvault based on fees
+            high=0.0,
+            low=0.0,
             high_buy=DEFAULT_SMALL_VALUE,
             high_sell=DEFAULT_SMALL_VALUE,
             low_buy=DEFAULT_BIG_VALUE,
@@ -154,9 +149,9 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
             self._new_pair_init(ticker_id, (base, base_sym), (target, target_sym))
 
         if base_volume != 0:
-            price = target_volume / base_volume
+            price = (target_volume / base_volume) * ONE # Multiply by Decimal(1.0) to keep fraction point in case of equal values
         else:
-            price = 0
+            price = ZERO
 
         self._count_for_timeframe(trade.timestamp, ticker_id, action_type, price, base_volume, target_volume)    
 
@@ -211,20 +206,20 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
     def _fill_orderbook(self, ticker_id: str):
         col_info = self._collateral(self._cg_data[ticker_id].target_address)
         token2 = ERC20Token(self._w3prov, self._cg_data[ticker_id].target_address)
-        token2_one = Decimal(10) ** Decimal(token2.decimals())
+        token2_one = TEN ** Decimal(token2.decimals())
         token2_balance = token2.normalize(col_info.balance)
         token2_price = Decimal(col_info.price)
         token2_inFee = Decimal(col_info.inFee)
         token2_outFee = Decimal(col_info.outFee)
         if self._cg_data[ticker_id].base_address == BOB_TOKEN_ADDRESS:
             token1_balance = self._bob_balance_for_vault()
-            token1_one = Decimal(10) ** Decimal(ERC20Token(self._w3prov, BOB_TOKEN_ADDRESS).decimals())
+            token1_one = TEN ** Decimal(ERC20Token(self._w3prov, BOB_TOKEN_ADDRESS).decimals())
             self._cg_data[ticker_id].orderbook.bids[0][1] = ONE - (token1_one / ONE_ETHER * token2_price / token2_one * token2_outFee / ONE_ETHER)
             self._cg_data[ticker_id].orderbook.asks[0][1] = token1_one / token2_one * token2_price / (ONE_ETHER - token2_inFee)
         else:
             col_info = self._collateral(self._cg_data[ticker_id].base_address)
             token1 = ERC20Token(self._w3prov, self._cg_data[ticker_id].base_address)
-            token1_one = Decimal(10) ** Decimal(token1.decimals())
+            token1_one = TEN ** Decimal(token1.decimals())
             token1_balance = token1.normalize(col_info.balance)
             token1_price = Decimal(col_info.price)
             token1_inFee = Decimal(col_info.inFee)
