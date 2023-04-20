@@ -5,8 +5,6 @@ from bobstats.stats import Stats
 from bobstats.db import DBAdapter
 from bobstats.feeding import prepare_data_for_feeding, BobStatsConnector
 
-from feeding.connector import ConnectorConfig
-
 from utils.logging import error, info
 from utils.misc import every
 
@@ -25,12 +23,10 @@ class BobStats:
         self._stats = Stats(settings)
         self._db = DBAdapter(settings)
         self._connector = BobStatsConnector(
-            ConnectorConfig(
-                base_url=settings.feeding_service_url,
-                upload_path=settings.feeding_service_path,
-                upload_token=settings.feeding_service_upload_token,
-                health_path=settings.feeding_service_health_path
-            )
+            base_url=settings.feeding_service_url,
+            upload_path=settings.feeding_service_path,
+            upload_token=settings.feeding_service_upload_token,
+            health_path=settings.feeding_service_health_path
         )
         self._measurements_interval = settings.measurements_interval
         self._monitor_interval = settings.feeding_service_monitor_interval
