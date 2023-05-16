@@ -71,6 +71,7 @@ class BobStatsConnector(UploadingConnector):
 
     def upload_bobstats(self, data: BobStatsDataForTwoPeriods) -> bool:
         data_as_str = dumps(data.dict(), cls=CustomJSONEncoder)
+        info(f'connector: uploading stats')
 
         return self._upload(data_as_str)
 

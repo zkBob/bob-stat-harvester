@@ -5,9 +5,11 @@ from time import time
 from json import dump
 
 from utils.web3 import Web3Provider, ERC20Token
-from utils.logging import info
+from utils.logging import info, error
 from utils.constants import ONE_DAY, BOB_TOKEN_ADDRESS, ONE_ETHER
 from utils.misc import CustomJSONEncoder
+
+from .feeding import CoinGeckoFeedingServiceConnector
 
 from bobvault.contract import BobVaultContract
 from bobvault.settings import Settings
@@ -29,10 +31,7 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
     _contract: BobVaultContract
     _pool_id: str
     _full_filename: str
-    _feeding_service_url: str
-    _feeding_service_path: str
-    _feeding_service_upload_token: str
-    _feeding_service_health_path: str
+    _connector: CoinGeckoFeedingServiceConnector
     _feeding_service_health_container: str
     _feeding_service_monitor_interval: int
     _feeding_service_monitor_attempts_for_info: int
@@ -41,9 +40,6 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
         self._chainid = chainid
         self._full_filename = f'{settings.snapshot_dir}/{chainid}-{settings.coingecko_file_suffix}'
         self._w3prov = settings.w3_providers[chainid]
-        self._feeding_service_url = settings.feeding_service_url
-        self._feeding_service_health_path = settings.feeding_service_health_path
-        self._feeding_service_upload_token = settings.feeding_service_upload_token
         self._feeding_service_monitor_interval = settings.feeding_service_monitor_interval
         self._feeding_service_monitor_attempts_for_info = settings.feeding_service_monitor_attempts_for_info
         for inv in settings.chains[chainid].inventories:
@@ -55,8 +51,13 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
                     settings.chains[chainid].rpc.history_block_range
                 )
                 self._pool_id = inv.coingecko_poolid
-                self._feeding_service_path = inv.feeding_service_path
-                self._feeding_service_health_container = inv.feeding_service_health_container
+                self._connector = CoinGeckoFeedingServiceConnector(
+                    base_url=settings.feeding_service_url,
+                    upload_path=inv.feeding_service_path,
+                    upload_path=settings.feeding_service_upload_token,
+                    health_path=settings.feeding_service_health_path,
+                    health_container=inv.feeding_service_health_container
+                )
                 break
 
     def pre(self, snapshot: dict) -> bool:
@@ -268,6 +269,15 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
             self._fill_last_price(ticker_id)
 
         info(f'Saving CG data snapshot to {self._full_filename}')
-        with open(self._full_filename, 'w') as json_file:
-            dump(self._cg_data.dict(exclude_none = True), json_file, cls=CustomJSONEncoder)
+        data_as_dict = self._cg_data.dict(exclude_none = True)
+        retval = False
+        try:
+            with open(self._full_filename, 'w') as json_file:
+                dump(data_as_dict, json_file, cls=CustomJSONEncoder)
+                retval = True
+        except Exception as e:
+            error(f'Cannot save CG data with the reason {e}')
+
+        retval &= self._connector(data_as_dict)
+
         return True

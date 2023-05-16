@@ -20,13 +20,13 @@ class BaseConnector:
     def __init__(self, base_url: str, upload_path: str, upload_token: str, health_path: str):
         self._service_url = base_url
         self._upload_path = upload_path
-        self._health_path = upload_token
-        self._bearer_auth = SimpleBearerAuth(health_path)
+        self._health_path = health_path
+        self._bearer_auth = SimpleBearerAuth(upload_token)
 
 class UploadingConnector(BaseConnector):
 
     def _upload(self, data: str) -> bool:
-        info(f'connector: uploading stats to feeding service')
+        info(f'connector: uploading data to feeding service')
         try:
             r = post(
                 f'{self._service_url}{self._upload_path}',
@@ -36,11 +36,11 @@ class UploadingConnector(BaseConnector):
                 timeout=(3.05, 27)
             )
         except Exception as e:
-            error(f'connector: something wrong with uploading stats to feeding service: {e}')
+            error(f'connector: something wrong with uploading data to feeding service: {e}')
             return False
         else:
             if r.status_code != 200:
-                error(f'connector: cannot upload stats (status code: {r.status_code}, error: {r.text})')
+                error(f'connector: cannot upload data (status code: {r.status_code}, error: {r.text})')
                 return False
-        info(f'connector: stats uploaded to feeding service successfully')
+        info(f'connector: data uploaded to feeding service successfully')
         return True
