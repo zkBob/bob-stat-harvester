@@ -26,10 +26,11 @@ class BaseConnector:
 class UploadingConnector(BaseConnector):
 
     def _upload(self, data: str) -> bool:
-        info(f'connector: uploading data to feeding service')
+        upload_url = f'{self._service_url}{self._upload_path}'
+        info(f'connector: uploading data to feeding service by {upload_url}')
         try:
             r = post(
-                f'{self._service_url}{self._upload_path}',
+                upload_url,
                 data=data,
                 headers={'Content-Type': 'application/json'},
                 auth=self._bearer_auth,
