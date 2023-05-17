@@ -22,6 +22,10 @@ class BobVaultInventory(BaseModel):
     feeding_service_path: str
     feeding_service_health_container: str
 
+class InventoryHolder(BaseModel):
+    protocol: str
+    address: str
+
 class CoinGeckoMarkets(BaseModel):
     known: Optional[List[str]]
     exclude: Optional[List[str]]
@@ -32,6 +36,5 @@ class DepoloymentDescriptor(BaseModel):
     events_pull_interval: int
     rpc: RPCSpec
     token: TokenSpec
-    inventories: Optional[List[Union[UniswapLikeInventory, BobVaultInventory]]]
+    inventories: Optional[List[Union[UniswapLikeInventory, BobVaultInventory, InventoryHolder]]]
     coingecko: Optional[CoinGeckoMarkets]
-

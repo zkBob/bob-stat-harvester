@@ -12,6 +12,7 @@ from .inventories.common import InventoryHandler, UniswapLikeInventoryStats, Bob
 from .inventories.uniswap import UniswapInventoryHandler
 from .inventories.kyberswap import KyberswapElasticInventoryHandler
 from .inventories.bobvault import BobVaultInventoryHandler
+from .inventories.holder import InventoryHolderHandler
 
 class Inventory:
     _w3_providers: Dict[str, Web3Provider]
@@ -20,7 +21,8 @@ class Inventory:
 
     _inventory_protocols = {'UniswapV3': UniswapInventoryHandler,
                             'KyberSwap Elastic': KyberswapElasticInventoryHandler,
-                            'BobVault': BobVaultInventoryHandler
+                            'BobVault': BobVaultInventoryHandler,
+                            'Holder': InventoryHolderHandler
                            }
 
     def __init__(self, settings: Settings):

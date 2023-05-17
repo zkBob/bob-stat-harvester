@@ -33,6 +33,9 @@ class UniswapLikeInventoryStats(BaseModel):
 class BobVaultInventoryStats(BaseModel):
     token0: BaseInventoryStats
 
+class InventoryHolderStats(BaseModel):
+    token0: BaseInventoryStats
+
 class UniswapLikePositionsManager:
     postions: List[Position] = []
     fee_denominator: int = 0
