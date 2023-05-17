@@ -20,7 +20,7 @@ class CoinGeckoFeedingServiceConnector(UploadingConnector):
         self._feeding_service_health_container = health_container
 
     def upload_cg_data(self, data: dict) -> bool:
-        data_as_str = dumps(data.dict(), cls=CustomJSONEncoder)
+        data_as_str = dumps(data, cls=CustomJSONEncoder)
         info(f'connector: uploading stats in coingecko compatible format')
 
         return self._upload(data_as_str)

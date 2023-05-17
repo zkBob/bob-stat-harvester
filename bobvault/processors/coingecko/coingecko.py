@@ -54,7 +54,7 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
                 self._connector = CoinGeckoFeedingServiceConnector(
                     base_url=settings.feeding_service_url,
                     upload_path=inv.feeding_service_path,
-                    upload_path=settings.feeding_service_upload_token,
+                    upload_token=settings.feeding_service_upload_token,
                     health_path=settings.feeding_service_health_path,
                     health_container=inv.feeding_service_health_container
                 )
@@ -278,6 +278,6 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
         except Exception as e:
             error(f'Cannot save CG data with the reason {e}')
 
-        retval &= self._connector(data_as_dict)
+        retval &= self._connector.upload_cg_data(data_as_dict)
 
         return True
