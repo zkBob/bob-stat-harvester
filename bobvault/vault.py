@@ -6,11 +6,12 @@ from time import time
 
 from utils.logging import info, error, warning
 from utils.web3 import Web3Provider
-from utils.misc import CustomJSONEncoder
+from utils.misc import CustomJSONEncoder, InitException
+from utils.settings.models import BobVaultInventory
 
 from .base_vault import BaseBobVault
 from .contract import BobVaultContract
-from .settings import Settings
+from .settings import Settings, discover_inventory
 from .abs_processor import BobVaultLogsProcessor
 
 class BobVault(BaseBobVault):
@@ -21,18 +22,20 @@ class BobVault(BaseBobVault):
     _snapshot: Tuple[int, dict]
 
     def __init__(self, chainid: str, settings: Settings):
+        def inventory_setup(inv: BobVaultInventory):
+            self._contract = BobVaultContract(
+                self._w3prov,
+                inv.address,
+                inv.start_block,
+                settings.chains[chainid].rpc.history_block_range
+            )
+
         super().__init__(chainid, settings.snapshot_dir, settings.snapshot_file_suffix)
         self._w3prov = settings.w3_providers[chainid]
         self._finalization_delay = settings.chains[chainid].finalization
-        for inv in settings.chains[chainid].inventories:
-            if inv.protocol == "BobVault":
-                self._contract = BobVaultContract(
-                    self._w3prov,
-                    inv.address,
-                    inv.start_block,
-                    settings.chains[chainid].rpc.history_block_range
-                )
-                break
+        if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
+            error(f'bobvault:{self._chainid}: inventory is not found')
+            raise InitException
 
     def register_processor(self, proc: BobVaultLogsProcessor):
         self._processors.append(proc)

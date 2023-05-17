@@ -4,6 +4,9 @@ from decimal import Decimal
 from time import time, sleep
 from json import JSONEncoder
 
+class InitException(Exception):
+    pass
+
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Decimal):

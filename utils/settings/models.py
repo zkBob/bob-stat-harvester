@@ -30,11 +30,13 @@ class CoinGeckoMarkets(BaseModel):
     known: Optional[List[str]]
     exclude: Optional[List[str]]
 
+InventoriesList = List[Union[UniswapLikeInventory, BobVaultInventory, InventoryHolder]]
+
 class DepoloymentDescriptor(BaseModel):
     name: str
     finalization: int
     events_pull_interval: int
     rpc: RPCSpec
     token: TokenSpec
-    inventories: Optional[List[Union[UniswapLikeInventory, BobVaultInventory, InventoryHolder]]]
+    inventories: Optional[InventoriesList]
     coingecko: Optional[CoinGeckoMarkets]
