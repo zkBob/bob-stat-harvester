@@ -19,6 +19,10 @@
           "address":"0x61a57F1C82DA40e632C075D7812Af375Db23367c",
           "start_block":"26230002",
           "feeding_service_path":"/bsc/upload"
+        },
+        {
+          "protocol":"Holder",
+          "address":"0x525b4E120dDC602fF055Aa86803acD7D71F0c753"
         }
       ],
       "token":{
