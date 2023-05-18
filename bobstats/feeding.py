@@ -72,10 +72,9 @@ class BobStatsConnector(UploadingConnector):
 
     def check_data_availability(self) -> DACheckResults:
         ret = DACheckResults(accessible=False, available=False)
-        response = self._get_health_data()
-        if response:
+        (status, stuctured) = self._get_health_data()
+        if status:
             ret.accessible = True
-            stuctured = self._parse_health_data(response)
             if stuctured:
                 health = stuctured.modules['BobStats']
                 if health.status == 'error' and \
