@@ -77,3 +77,6 @@ class BaseBobVault:
             vol = self._get_bobvault_volume_for_timeframe(logs, now_minus_24h, now)
             info(f'bobvault:{self._chainid}: discovered volume {vol}')
         return vol
+    
+    def getChainId(self) -> str:
+        return self._chainid

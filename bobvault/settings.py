@@ -20,6 +20,7 @@ class Settings(FeedingServiceSettings):
     snapshot_file_suffix: str = 'bobvault-snaphsot.json'
     coingecko_file_suffix: str = 'bobvault-coingecko-data.json'
     w3_providers: dict = {}
+    max_workers: int = 5
 
     def __init__(self):
         def init_w3_providers():
