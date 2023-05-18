@@ -95,7 +95,7 @@ class BobVault(BaseBobVault):
 
         return True
 
-    def process(self):
+    def process(self, keep_snapshot = False):
         info(f'bobvault:{self._chainid}: start processing snapshot with processors {self._processors}')
         if len(self._snapshot) == 0:
             warning(f'bobvault:{self._chainid}: no snapshot to process')
@@ -112,3 +112,6 @@ class BobVault(BaseBobVault):
         for p in self._processors:
             info(f'bobvault:{self._chainid}: post-processing by {p}')
             p.post()
+
+        if not keep_snapshot:
+            self._snapshot = ()
