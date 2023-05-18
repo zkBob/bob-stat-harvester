@@ -1,7 +1,8 @@
-from requests import post
+from requests import post, get
 from requests.auth import AuthBase
 
 from utils.logging import info, error
+from utils.health import HealthOut
 
 class SimpleBearerAuth(AuthBase):
     def __init__(self, _token):
@@ -45,3 +46,25 @@ class UploadingConnector(BaseConnector):
                 return False
         info(f'connector: data uploaded to feeding service successfully')
         return True
+    
+    def _get_health_data(self) -> bool:
+        retval = None
+        try:
+            r = get(f'{self._service_url}{self._health_path}', timeout=(3.05, 27))
+        except IOError as e :
+            error(f'connector: cannot get feeding service health status: {e}')
+        except ValueError as e :
+            error(f'connector: cannot get feeding service health status: {e}')
+        else:
+            if r.status_code != 200:
+                error(f'connector: cannot get health data (status code: {r.status_code}, error: {r.text})')
+            else:
+                retval = r.json()
+        return retval
+    
+    def _parse_health_data(self, raw_data: dict) -> HealthOut:
+        try:
+            stuctured = HealthOut.parse_obj(raw_data)
+            return stuctured
+        except Exception as e: 
+            error(f'connector: cannot parse health data: {e}')

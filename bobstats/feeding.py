@@ -1,10 +1,9 @@
 from decimal import Decimal
 
-from pydantic import Extra, BaseModel
+from pydantic import Extra
 
 from time import time
 
-import requests
 from json import dumps
 
 from feeding.connector import UploadingConnector
@@ -12,7 +11,7 @@ from feeding.connector import UploadingConnector
 from utils.logging import info, error, warning
 from utils.models import TimestampedBaseModel
 from utils.constants import ONE_DAY
-from utils.misc import CustomJSONEncoder
+from utils.misc import CustomJSONEncoder, DACheckResults
 from utils.health import HealthOut
 
 from .db import DBAdapter
@@ -27,10 +26,6 @@ class BobStatsPeriodData(TimestampedBaseModel, extra=Extra.forbid):
 class BobStatsDataForTwoPeriods(TimestampedBaseModel, extra=Extra.forbid):
     current: BobStatsPeriodData
     previous: BobStatsPeriodData
-
-class DACheckResults(BaseModel):
-    accessible: bool
-    available: bool
 
 def _chainsdata_to_bobstats(stats: StatsByChains) -> BobStatsPeriodData:
     bobstats = BobStatsPeriodData(
@@ -77,28 +72,16 @@ class BobStatsConnector(UploadingConnector):
 
     def check_data_availability(self) -> DACheckResults:
         ret = DACheckResults(accessible=False, available=False)
-        try:
-            r = requests.get(f'{self._service_url}{self._health_path}', timeout=(3.05, 27))
-        except IOError as e :
-            error(f'connector: cannot get feeding service health status: {e}')
-        except ValueError as e :
-            error(f'connector: cannot get feeding service health status: {e}')
-        else:
-            if r.status_code != 200:
-                error(f'connector: cannot get health data (status code: {r.status_code}, error: {r.text})')
-            else:
-                ret.accessible = True
-                resp = r.json()
-                try:
-                    stuctured = HealthOut.parse_obj(resp)
-                    health = stuctured.modules['BobStats']
-                except Exception as e: 
-                    error(f'connector: cannot find health data: {e}')
+        response = self._get_health_data()
+        if response:
+            ret.accessible = True
+            stuctured = self._parse_health_data(response)
+            if stuctured:
+                health = stuctured.modules['BobStats']
+                if health.status == 'error' and \
+                    health.lastSuccessTimestamp == 0 and \
+                    health.lastErrorTimestamp == 0:
+                    warning(f'connector: no data on the feeding service') 
                 else:
-                    if health.status == 'error' and \
-                       health.lastSuccessTimestamp == 0 and \
-                       health.lastErrorTimestamp == 0:
-                        warning(f'connector: no data on the feeding service') 
-                    else:
-                        ret.available = True
+                    ret.available = True
         return ret

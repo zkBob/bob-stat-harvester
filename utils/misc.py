@@ -1,8 +1,13 @@
 from typing import Callable
 from decimal import Decimal
+from pydantic import BaseModel
 
 from time import time, sleep
 from json import JSONEncoder
+
+class DACheckResults(BaseModel):
+    accessible: bool
+    available: bool
 
 class InitException(Exception):
     pass
