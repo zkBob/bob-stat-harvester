@@ -27,6 +27,7 @@ class BobVaultTrades:
         self._monitor_attempts_for_info = settings.feeding_service_monitor_attempts_for_info
         self._max_workers = settings.max_workers
         chains = settings.chain_selector.split(",")
+        info(f'Run for chains: {", ".join(chains)}')
         if len(chains) > 0:
             self._vaults = []
             for ch in chains:
@@ -50,11 +51,15 @@ class BobVaultTrades:
                     error(f'Not able to handle BobVault successfully in {vault_futures[f]}')
 
     def monitor_feeding_service(self):
+        enable_logs = False
         if self._monitor_feedback_counter == (self._monitor_attempts_for_info - 1):
             info(f'Checking feeding service for data availability')
+            enable_logs = True
             self._monitor_feedback_counter = 0
         else:
             self._monitor_feedback_counter += 1
+        for vault in self._vaults:
+            vault.monitor(log = enable_logs)
 
     def loop(self):
         curtime = time()

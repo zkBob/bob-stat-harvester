@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Tuple
 
 from time import time
-from json import dump
+from json import dump, load
 
 from utils.web3 import Web3Provider, ERC20Token
 from utils.logging import info, error
@@ -33,9 +33,6 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
     _pool_id: str
     _full_filename: str
     _connector: CoinGeckoFeedingServiceConnector
-    _feeding_service_health_container: str
-    _feeding_service_monitor_interval: int
-    _feeding_service_monitor_attempts_for_info: int
 
     def __init__(self, chainid: str, settings: Settings):
         def inventory_setup(inv: BobVaultInventory):
@@ -51,14 +48,13 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
                 upload_path=inv.feeding_service_path,
                 upload_token=settings.feeding_service_upload_token,
                 health_path=settings.feeding_service_health_path,
-                health_container=inv.feeding_service_health_container
+                health_container=inv.feeding_service_health_container,
+                cache_ttl=(settings.feeding_service_monitor_interval // 2)
             )
 
         self._chainid = chainid
         self._full_filename = f'{settings.snapshot_dir}/{chainid}-{settings.coingecko_file_suffix}'
         self._w3prov = settings.w3_providers[chainid]
-        self._feeding_service_monitor_interval = settings.feeding_service_monitor_interval
-        self._feeding_service_monitor_attempts_for_info = settings.feeding_service_monitor_attempts_for_info
         if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
             error(f'coingecko:{self._chainid}: inventory is not found')
             raise InitException
@@ -286,4 +282,18 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
 
         retval &= self._connector.upload_cg_data(data_as_dict)
 
-        return True
+        return retval
+    
+    def monitor(self) -> bool:
+        retval = False
+        status = self._connector.check_data_availability()
+        if status.accessible and not status.available:
+            info(f'coingecko:{self._chainid}: looking for snapshot {self._full_filename}')
+            try:
+                with open(self._full_filename, 'r') as json_file:
+                    data_as_dict = load(json_file)
+            except IOError:
+                error(f'coingecko:{self._chainid}: snapshot not found')
+            else:
+                retval = self._connector.upload_cg_data(data_as_dict)
+        return retval

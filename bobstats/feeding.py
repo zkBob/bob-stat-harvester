@@ -8,11 +8,10 @@ from json import dumps
 
 from feeding.connector import UploadingConnector
 
-from utils.logging import info, error, warning
+from utils.logging import info
 from utils.models import TimestampedBaseModel
 from utils.constants import ONE_DAY
 from utils.misc import CustomJSONEncoder, DACheckResults
-from utils.health import HealthOut
 
 from .db import DBAdapter
 from .common import StatsByChains
@@ -77,10 +76,5 @@ class BobStatsConnector(UploadingConnector):
             ret.accessible = True
             if stuctured:
                 health = stuctured.modules['BobStats']
-                if health.status == 'error' and \
-                    health.lastSuccessTimestamp == 0 and \
-                    health.lastErrorTimestamp == 0:
-                    warning(f'connector: no data on the feeding service') 
-                else:
-                    ret.available = True
+                ret.available = self._check_availability(health)
         return ret

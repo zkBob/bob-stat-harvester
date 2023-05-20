@@ -8,3 +8,6 @@ class BobVaultLogsProcessor:
 
     def post(self) -> bool:
         pass
+
+    def monitor(self) -> bool:
+        pass

@@ -18,7 +18,7 @@ class BobVault(BaseBobVault):
     _w3prov: Web3Provider
     _finalization_delay: int
     _contract: BobVaultContract
-    _processors: List[BobVaultLogsProcessor] = []
+    _processors: List[BobVaultLogsProcessor]
     _snapshot: Tuple[int, dict]
 
     def __init__(self, chainid: str, settings: Settings):
@@ -36,6 +36,9 @@ class BobVault(BaseBobVault):
         if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
             error(f'bobvault:{self._chainid}: inventory is not found')
             raise InitException
+        
+        self._processors = []
+        self._snapshot = ()
 
     def register_processor(self, proc: BobVaultLogsProcessor):
         self._processors.append(proc)
@@ -115,3 +118,11 @@ class BobVault(BaseBobVault):
 
         if not keep_snapshot:
             self._snapshot = ()
+
+    def monitor(self, log = False):
+        if log:
+            info(f'bobvault:{self._chainid}: start monitor tasks with processors {self._processors}')
+        for p in self._processors:
+            if log:
+                info(f'bobvault:{self._chainid}: monitor actions by {p}')
+            p.monitor()
