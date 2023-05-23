@@ -1,19 +1,17 @@
 from decimal import Decimal
 
-from pydantic import Extra, BaseModel
+from pydantic import Extra
 
 from time import time
 
-import requests
 from json import dumps
 
-from feeding.connector import BaseConnector
+from feeding.connector import UploadingConnector
 
-from utils.logging import info, error, warning
+from utils.logging import info
 from utils.models import TimestampedBaseModel
 from utils.constants import ONE_DAY
-from utils.misc import CustomJSONEncoder
-from utils.health import HealthOut
+from utils.misc import CustomJSONEncoder, DACheckResults
 
 from .db import DBAdapter
 from .common import StatsByChains
@@ -27,10 +25,6 @@ class BobStatsPeriodData(TimestampedBaseModel, extra=Extra.forbid):
 class BobStatsDataForTwoPeriods(TimestampedBaseModel, extra=Extra.forbid):
     current: BobStatsPeriodData
     previous: BobStatsPeriodData
-
-class DACheckResults(BaseModel):
-    accessible: bool
-    available: bool
 
 def _chainsdata_to_bobstats(stats: StatsByChains) -> BobStatsPeriodData:
     bobstats = BobStatsPeriodData(
@@ -67,54 +61,20 @@ def prepare_data_for_feeding(stats: StatsByChains, db: DBAdapter) -> BobStatsDat
         previous = prev
     )
 
-class BobStatsConnector(BaseConnector):
+class BobStatsConnector(UploadingConnector):
 
     def upload_bobstats(self, data: BobStatsDataForTwoPeriods) -> bool:
         data_as_str = dumps(data.dict(), cls=CustomJSONEncoder)
-        info(f'connector: uploading stats to feeding service')
+        info(f'connector: uploading stats')
 
-        try:
-            r = requests.post(
-                f'{self._service_url}{self._upload_path}',
-                data=data_as_str,
-                headers={'Content-Type': 'application/json'},
-                auth=self._bearer_auth,
-                timeout=(3.05, 27)
-            )
-        except Exception as e:
-            error(f'connector: something wrong with uploading stats to feeding service: {e}')
-            return False
-        else:
-            if r.status_code != 200:
-                error(f'connector: cannot upload stats (status code: {r.status_code}, error: {r.text})')
-                return False
-        info(f'connector: stats uploaded to feeding service successfully')
-        return True
+        return self._upload(data_as_str)
 
     def check_data_availability(self) -> DACheckResults:
         ret = DACheckResults(accessible=False, available=False)
-        try:
-            r = requests.get(f'{self._service_url}{self._health_path}', timeout=(3.05, 27))
-        except IOError as e :
-            error(f'connector: cannot get feeding service health status: {e}')
-        except ValueError as e :
-            error(f'connector: cannot get feeding service health status: {e}')
-        else:
-            if r.status_code != 200:
-                error(f'connector: cannot get health data (status code: {r.status_code}, error: {r.text})')
-            else:
-                ret.accessible = True
-                resp = r.json()
-                try:
-                    stuctured = HealthOut.parse_obj(resp)
-                    health = stuctured.modules['BobStats']
-                except Exception as e: 
-                    error(f'connector: cannot find health data: {e}')
-                else:
-                    if health.status == 'error' and \
-                       health.lastSuccessTimestamp == 0 and \
-                       health.lastErrorTimestamp == 0:
-                        warning(f'connector: no data on the feeding service') 
-                    else:
-                        ret.available = True
+        (status, stuctured) = self._get_health_data()
+        if status:
+            ret.accessible = True
+            if stuctured:
+                health = stuctured.modules['BobStats']
+                ret.available = self._check_availability(health)
         return ret

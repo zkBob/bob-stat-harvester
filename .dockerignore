@@ -12,3 +12,8 @@ tsdb
 [^/]*.log
 .devcontainer
 **/*/__pycache__
+**/*.tar
+**/*/*.tar
+sync.sh
+try.*
+localtest.env

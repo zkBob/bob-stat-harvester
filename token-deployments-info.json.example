@@ -10,6 +10,11 @@
       },
       "inventories":[
         {
+          "protocol":"UniswapV3",
+          "pos_manager":"0x7b8a01b39d58278b5de7e48c8449c9f4f5170613",
+          "owner":"0xd4a3D9Ca00fa1fD8833D560F9217458E61c446d8"
+        },
+        {
           "protocol":"KyberSwap Elastic",
           "pos_manager":"0x2b1c7b41f6a8f2b2bc45c3233a5d5fb3cd6dc9a8",
           "owner":"0xd4a3D9Ca00fa1fD8833D560F9217458E61c446d8"
@@ -18,7 +23,9 @@
           "protocol":"BobVault",
           "address":"0x61a57F1C82DA40e632C075D7812Af375Db23367c",
           "start_block":"26230002",
-          "feeding_service_path":"/bsc/upload"
+          "feeding_service_path":"/bsc/upload",
+          "coingecko_poolid":"bobvault_bsc",
+          "feeding_service_health_container":"bsc"
         },
         {
           "protocol":"Holder",
@@ -50,8 +57,10 @@
           "protocol":"BobVault",
           "address":"0x25e6505297b44f4817538fb2d91b88e1cf841b54",
           "start_block":"36750276",
-          "feeding_service_path":"/polygon/upload"
-          }
+          "feeding_service_path":"/polygon/upload",
+          "coingecko_poolid":"bobvault_polygon",
+          "feeding_service_health_container":"polygon"
+        }
       ],
       "token":{
         "start_block":"32845237"
@@ -84,7 +93,9 @@
           "protocol":"BobVault",
           "address":"0x15729Ac1795Fa02448a55D206005dC1914144a9F",
           "start_block":"16670785",
-          "feeding_service_path":"/mainnet/upload"
+          "feeding_service_path":"/mainnet/upload",
+          "coingecko_poolid":"bobvault_eth_mainnet",
+          "feeding_service_health_container":"mainnet"
         }
       ],
       "token":{
@@ -112,7 +123,9 @@
           "protocol":"BobVault",
           "address":"0x8aEb89D5C689C2cf373Fe8b56c7A0cD5BDc74CE6",
           "start_block":"78856378",
-          "feeding_service_path":"/eth-opt/upload"
+          "feeding_service_path":"/eth-opt/upload",
+          "coingecko_poolid":"bobvault_eth_optimism",
+          "feeding_service_health_container":"eth-opt"
         }
       ],
       "token":{
@@ -140,7 +153,9 @@
           "protocol":"BobVault",
           "address":"0x72e6B59D4a90ab232e55D4BB7ed2dD17494D62fB",
           "start_block":"67246494",
-          "feeding_service_path":"/arbitrum1/upload"
+          "feeding_service_path":"/arbitrum1/upload",
+          "coingecko_poolid":"bobvault_arbitrum_one",
+          "feeding_service_health_container":"arbitrum1"
         }
       ],
       "token":{

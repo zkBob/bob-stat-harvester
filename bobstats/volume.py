@@ -6,14 +6,14 @@ from utils.logging import info, error
 from .settings import Settings
 
 from .volume_adapters.common import GenericVolumeAdapter
-from .volume_adapters.coingecko import CoinGecko
-from .volume_adapters.bobvault import BobVault
+from .volume_adapters.coingecko import VolumeOnCoinGecko
+from .volume_adapters.bobvault import VolumeOnBobVaults
 
 class Volume:
     _adapters: List[GenericVolumeAdapter]
 
     def __init__(self, settings: Settings):
-        self._adapters = [CoinGecko(settings), BobVault(settings)]
+        self._adapters = [VolumeOnCoinGecko(settings), VolumeOnBobVaults(settings)]
 
     def get_volume(self) -> Dict[str, Decimal]:
         info(f'Getting 24h volume')

@@ -1,27 +1,26 @@
-from typing import Dict
+from typing import Dict, List, Union, Callable
 
 from utils.settings.feeding import FeedingServiceSettings
-from utils.logging import info, error
+from utils.settings.models import InventoriesList
+from utils.logging import info
 from utils.web3 import Web3Provider
 
+def discover_inventory(inventories: InventoriesList, func: Callable):
+    bobvault_found = False
+    for inv in inventories:
+        if inv.protocol == "BobVault":
+            func(inv)
+            bobvault_found = True
+            break
+    return bobvault_found
+
 class Settings(FeedingServiceSettings):
-    update_bigquery: bool = True
-    bigquery_auth_json_key: str = 'bigquery-key.json'
-    bigquery_project: str = 'some-project'
-    bigquery_dataset: str = 'some-dashboard'
-    bigquery_table: str = 'some-table'
-    feeding_service_path: str = '/'
+    chain_selector: str = 'pol'
     snapshot_dir: str = '.'
-    bobvault_snapshot_file_suffix: str = 'bobvault-snaphsot.json'
-    balances_snapshot_file_suffix: str = 'bob-holders-snaphsot.json'
-    coingecko_retry_attempts: int = 2
-    coingecko_retry_delay: int = 5
-    coingecko_include_anomalies: bool = True
-    max_workers: int = 5
-    tsdb_dir: str = '.'
-    bob_composed_stat_db: str = 'bobstat_composed.csv'
-    bob_composed_fees_stat_db: str = 'bobstat_comp_fees.csv'
+    snapshot_file_suffix: str = 'bobvault-snaphsot.json'
+    coingecko_file_suffix: str = 'bobvault-coingecko-data.json'
     w3_providers: dict = {}
+    max_workers: int = 5
 
     def __init__(self):
         def init_w3_providers():

@@ -49,7 +49,7 @@ class CoinGeckoTickers(BaseModel):
     name: str
     tickers: List[CoinGeckoTickerInfo]
 
-class CoinGecko(GenericVolumeAdapter):
+class VolumeOnCoinGecko(GenericVolumeAdapter):
     _retry_attempts: int
     _retry_delay: int
     _include_anomalies: bool

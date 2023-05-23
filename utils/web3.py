@@ -9,11 +9,14 @@ from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 from web3.eth import Contract
 
-from .settings.common import CommonSettings
 from .logging import info, error
 from .abi import get_abi, ABI
 
 class Web3Provider:
+    chainid: str
+    w3: Web3
+    _retry_attemtps: int
+    _retry_delay: int
 
     def __init__(
         self,
@@ -83,9 +86,12 @@ class ERC20Token:
         info(f'{self.w3_provider.chainid}: totalSupply is {retval} (normalized = {normalize})')
         return retval
 
-    def balanceOf(self, owner: str, normalize: bool = True) -> Decimal:
+    def balanceOf(self, owner: str, bn: int = -1, normalize: bool = True) -> Decimal:
         info(f'{self.w3_provider.chainid}: getting balance of {owner}')
-        retval = self.w3_provider.make_call(self.contract.functions.balanceOf(owner).call)
+        if bn == -1: 
+            retval = self.w3_provider.make_call(self.contract.functions.balanceOf(owner).call)
+        else:
+            retval = self.w3_provider.make_call(self.contract.functions.balanceOf(owner).call, block_identifier=bn)
         if normalize:
             denominator_power = self.decimals()
             retval = Decimal(retval / 10 ** denominator_power)

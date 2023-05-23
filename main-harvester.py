@@ -1,4 +1,4 @@
-from time import time, sleep
+from time import time
 
 from bobstats.settings import Settings
 from bobstats.stats import Stats
@@ -22,7 +22,12 @@ class BobStats:
     def __init__(self, settings: Settings):
         self._stats = Stats(settings)
         self._db = DBAdapter(settings)
-        self._connector = BobStatsConnector(settings)
+        self._connector = BobStatsConnector(
+            base_url=settings.feeding_service_url,
+            upload_path=settings.feeding_service_path,
+            upload_token=settings.feeding_service_upload_token,
+            health_path=settings.feeding_service_health_path
+        )
         self._measurements_interval = settings.measurements_interval
         self._monitor_interval = settings.feeding_service_monitor_interval
         self._monitor_attempts_for_info = settings.feeding_service_monitor_attempts_for_info
