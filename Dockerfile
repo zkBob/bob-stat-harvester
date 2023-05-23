@@ -17,8 +17,11 @@ WORKDIR /app
 
 COPY abi abi
 COPY main-harvester.py .
+COPY bobvault-trades.py .
 COPY bobstats bobstats
+COPY bobvault bobvault
 COPY feeding feeding
 COPY utils utils
 
+# default endpoint
 ENTRYPOINT python main-harvester.py

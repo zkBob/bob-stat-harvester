@@ -10,6 +10,11 @@
       },
       "inventories":[
         {
+          "protocol":"UniswapV3",
+          "pos_manager":"0x7b8a01b39d58278b5de7e48c8449c9f4f5170613",
+          "owner":"0xd4a3D9Ca00fa1fD8833D560F9217458E61c446d8"
+        },
+        {
           "protocol":"KyberSwap Elastic",
           "pos_manager":"0x2b1c7b41f6a8f2b2bc45c3233a5d5fb3cd6dc9a8",
           "owner":"0xd4a3D9Ca00fa1fD8833D560F9217458E61c446d8"
