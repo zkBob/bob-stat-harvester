@@ -207,6 +207,16 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
         return self._vault_balance
 
     def _fill_orderbook(self, ticker_id: str):
+        def get_bid_price_for_BOB(target_one, target_price, target_outFee):
+            # it is OK to call decimals here since they are cached
+            base_one = TEN ** Decimal(ERC20Token(self._w3prov, BOB_TOKEN_ADDRESS).decimals())
+            return ONE - (base_one / ONE_ETHER * target_price / target_one * target_outFee / ONE_ETHER)
+
+        def get_ask_price_for_BOB(target_one, target_price, target_inFee):
+            # it is OK to call decimals here since they are cached
+            base_one = TEN ** Decimal(ERC20Token(self._w3prov, BOB_TOKEN_ADDRESS).decimals())
+            return base_one / target_one * target_price / (ONE_ETHER - target_inFee)
+
         col_info = self._collateral(self._cg_data[ticker_id].target_address)
         token2 = ERC20Token(self._w3prov, self._cg_data[ticker_id].target_address)
         token2_one = TEN ** Decimal(token2.decimals())
@@ -216,9 +226,8 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
         token2_outFee = Decimal(col_info.outFee)
         if self._cg_data[ticker_id].base_address == BOB_TOKEN_ADDRESS:
             token1_balance = self._bob_balance_for_vault()
-            token1_one = TEN ** Decimal(ERC20Token(self._w3prov, BOB_TOKEN_ADDRESS).decimals())
-            self._cg_data[ticker_id].orderbook.bids[0][1] = ONE - (token1_one / ONE_ETHER * token2_price / token2_one * token2_outFee / ONE_ETHER)
-            self._cg_data[ticker_id].orderbook.asks[0][1] = token1_one / token2_one * token2_price / (ONE_ETHER - token2_inFee)
+            self._cg_data[ticker_id].orderbook.bids[0][1] = get_bid_price_for_BOB(token2_one, token2_price, token2_outFee)
+            self._cg_data[ticker_id].orderbook.asks[0][1] = get_ask_price_for_BOB(token2_one, token2_price, token2_inFee)
         else:
             col_info = self._collateral(self._cg_data[ticker_id].base_address)
             token1 = ERC20Token(self._w3prov, self._cg_data[ticker_id].base_address)
@@ -228,8 +237,8 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
             token1_inFee = Decimal(col_info.inFee)
             token1_outFee = Decimal(col_info.outFee)
             
-            self._cg_data[ticker_id].orderbook.bids[0][1] = token2_one / (token1_one * (1 - token2_inFee / ONE_ETHER) * token1_price * (1 - token1_outFee / ONE_ETHER) / token2_price)
-            self._cg_data[ticker_id].orderbook.asks[0][1] = token1_one / (token2_one * (1 - token1_inFee / ONE_ETHER) * token2_price * (1 - token2_outFee / ONE_ETHER) / token1_price)
+            self._cg_data[ticker_id].orderbook.bids[0][1] = get_bid_price_for_BOB(token1_one, token1_price, token1_outFee) / get_ask_price_for_BOB(token2_one, token2_price, token2_inFee)
+            self._cg_data[ticker_id].orderbook.asks[0][1] = get_ask_price_for_BOB(token1_one, token1_price, token1_inFee) / get_bid_price_for_BOB(token2_one, token2_price, token2_outFee)
 
         self._cg_data[ticker_id].base_address = None
         self._cg_data[ticker_id].target_address = None
