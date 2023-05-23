@@ -24,6 +24,7 @@ services:
             max-file: "1"
   bobvault-harvester:
     image: ghcr.io/zkbob/bob-stat-harvester:${RELAYER_IMAGE:-latest}
+    entrypoint: ["python", "bobvault-trades.py"]
     container_name: bobvault-harvester
     environment:
         - CHAIN_SELECTOR=bsc,pol,eth,opt,arb1
