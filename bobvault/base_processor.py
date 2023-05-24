@@ -1,4 +1,14 @@
 class BobVaultLogsProcessor:
+    _chainid: str
+
+    def __init__(self, chainid: str):
+        self._chainid = chainid
+
+    def get_chainid(self):
+        return self._chainid
+
+    def __repr__(self):
+        return type(self).__name__
 
     def pre(self, snapshot: dict) -> bool:
         pass
