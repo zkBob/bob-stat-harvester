@@ -26,9 +26,9 @@ class FeesAdapter(BobVaultLogsProcessor):
 
         super().__init__(chainid)
         self._w3prov = settings.w3_providers[chainid]
-        self._db = DBAdapter(self, settings)
+        self._db = DBAdapter(chainid, settings)
         if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
-            error(f'coingecko:{self._chainid}: inventory is not found')
+            error(f'fees:{self._chainid}: inventory is not found')
             raise InitException
         
     def pre(self, snapshot: dict) -> bool:

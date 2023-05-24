@@ -4,10 +4,10 @@ class BobVaultLogsProcessor:
     def __init__(self, chainid: str):
         self._chainid = chainid
 
-    def get_chainid(self):
+    def get_chainid(self) -> str:
         return self._chainid
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return type(self).__name__
 
     def pre(self, snapshot: dict) -> bool:

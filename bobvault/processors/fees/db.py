@@ -7,11 +7,11 @@ from copy import copy
 
 from tinyflux import TinyFlux, Point
 
-from utils.logging import info
+from utils.logging import info, error
+from utils.misc import InitException
+from utils.settings.models import BobVaultInventory
 
-from bobvault.settings import Settings
-
-from bobvault.base_processor import BobVaultLogsProcessor
+from bobvault.settings import Settings, discover_inventory
 
 FeesDict = Dict[str, Union[str, int, Decimal]]
 
@@ -34,10 +34,17 @@ def _fees_dict_to_datapoint(fees: FeesDict) -> Point:
 class DBAdapter:
     _fees_stats_filename: str
     _log_prefix: str
+    _pool_id: str
 
-    def __init__(self, parent: BobVaultLogsProcessor, settings: Settings):
-        self._fees_stats_filename = f'{settings.tsdb_dir}/{parent.get_chainid()}-{settings.fees_stat_db}'
-        self._log_prefix = f'db:{parent.get_chainid()}'
+    def __init__(self, chainid: str, settings: Settings):
+        def inventory_setup(inv: BobVaultInventory):
+            self._pool_id = inv.coingecko_poolid
+        
+        self._log_prefix = f'db:{chainid}'
+        if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
+            error(f'{self._log_prefix }: inventory is not found')
+            raise InitException
+        self._fees_stats_filename = f'{settings.tsdb_dir}/{self._pool_id}-{settings.fees_stat_db}'
 
     def store(self, fees: FeesDict):
         info(f'{self._log_prefix}: storing data to timeseries db')
