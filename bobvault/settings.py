@@ -20,7 +20,7 @@ class Settings(FeedingServiceSettings):
     snapshot_file_suffix: str = 'bobvault-snaphsot.json'
     coingecko_file_suffix: str = 'bobvault-coingecko-data.json'
     tsdb_dir: str = '.'
-    fees_stat_db: str = 'bobvault-fees.csv'
+    fees_stat_db_suffix: str = 'bobvault-fees.csv'
     w3_providers: dict = {}
     max_workers: int = 5
 

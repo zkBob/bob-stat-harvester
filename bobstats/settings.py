@@ -21,6 +21,7 @@ class Settings(FeedingServiceSettings):
     tsdb_dir: str = '.'
     bob_composed_stat_db: str = 'bobstat_composed.csv'
     bob_composed_fees_stat_db: str = 'bobstat_comp_fees.csv'
+    bobvault_fees_db_suffix: str = 'bobvault-fees.csv'
     w3_providers: dict = {}
 
     def __init__(self):

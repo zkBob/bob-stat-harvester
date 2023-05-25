@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, Union, List
 
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_EXCEPTION
 
@@ -15,9 +15,8 @@ from .inventories.bobvault import BobVaultInventoryHandler
 from .inventories.holder import InventoryHolderHandler
 
 class Inventory:
-    _w3_providers: Dict[str, Web3Provider]
-    _chains: Dict[str, DepoloymentDescriptor]
     _max_workers: int
+    _handlers: Dict[str, List[InventoryHandler]]
 
     _inventory_protocols = {'UniswapV3': UniswapInventoryHandler,
                             'KyberSwap Elastic': KyberswapElasticInventoryHandler,
@@ -26,9 +25,21 @@ class Inventory:
                            }
 
     def __init__(self, settings: Settings):
-        self._w3_providers = settings.w3_providers
-        self._chains = settings.chains
-        self._max_workers = settings.max_workers
+        self._handlers = {}
+        for chainid in settings.chains:
+            self._handlers[chainid] = []
+            for inventory in settings.chains[chainid].inventories:
+                info(f'{chainid}: getting handler for {inventory.protocol}')
+                handler_class = self._get_inventory_handler(inventory.protocol)
+                if handler_class:
+                    self._handlers[chainid].append(handler_class.generate_handler(
+                        settings.w3_providers[chainid],
+                        inventory,
+                        settings
+                    ))
+                else:
+                    error(f'{chainid}: not able to discover inventory')
+        self._max_workers = min(len(self._handlers), settings.max_workers)
 
     def _get_inventory_handler(self, proto: str) -> InventoryHandler:
         if proto in self._inventory_protocols:
@@ -38,16 +49,11 @@ class Inventory:
             return None
 
     def _stats_for_chain(self, chainid: str, result: dict):
+        info(f'{chainid}: invoking handlers')
         result[chainid] = {}
-        for inventory in self._chains[chainid].inventories:
-            info(f'{chainid}: getting handler for {inventory.protocol}')
-            handler_class = self._get_inventory_handler(inventory.protocol)
-            if handler_class:
-                hanlder = handler_class.generate_handler(self._w3_providers[chainid], inventory)
-                poi = hanlder.get_stats()
-                result[chainid].update(poi)
-            else:
-                error(f'{chainid}: not able to discover inventory')
+        for handler in self._handlers[chainid]:
+            poi = handler.get_stats()
+            result[chainid].update(poi)
         
     def get_inventory(self) -> Dict[str, Dict[str, Union[UniswapLikeInventoryStats, BobVaultInventoryStats]]]:
         def task(chainid: str, result: dict):
@@ -55,11 +61,12 @@ class Inventory:
 
         info(f'Getting inventory')
         ret = {}
-        with ThreadPoolExecutor(max_workers=min(len(self._chains), self._max_workers)) as executor:
-            inventory_futures = {executor.submit(task, chainid, ret): chainid for chainid in self._chains}
+        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            inventory_futures = {executor.submit(task, chainid, ret): chainid for chainid in self._handlers}
             done = wait(inventory_futures, return_when = FIRST_EXCEPTION)[0]
             for f in done:
-                if f.exception():
-                    error(f'Not able to get inventory in {inventory_futures[f]}')
+                ex = f.exception()
+                if ex:
+                    error(f'Not able to get inventory in {inventory_futures[f]}: {ex}')
                     return {}
         return ret

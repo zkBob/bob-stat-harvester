@@ -12,7 +12,7 @@ from bobvault.base_processor import BobVaultLogsProcessor
 from bobvault.settings import Settings, discover_inventory
 from bobvault.models import BobVaultTrade
 
-from .db import DBAdapter
+from .db.adapter import DBAdapter
 
 class FeesAdapter(BobVaultLogsProcessor):
     _w3prov: Web3Provider
