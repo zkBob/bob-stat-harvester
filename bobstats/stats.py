@@ -1,4 +1,4 @@
-from typing import Dict, Union, List
+from typing import Dict, Union
 from pydantic import BaseModel
 from decimal import Decimal
 
@@ -11,7 +11,7 @@ from .supply import Supply
 from .holders import Holders
 from .inventory import Inventory
 from .volume import Volume
-from .common import StatsByChains, ChainStats
+from .common import StatsByChains, ChainStats, GainStats, OneTokenAcc
 
 from .inventories.common import UniswapLikeInventoryStats, BobVaultInventoryStats
 
@@ -67,16 +67,16 @@ class Stats:
             if (c in raw_data.inventory) and (c in raw_data.supply):
 
                 unused_supply = 0
-                all_fees = {}
+                all_inv_fees = {}
                 inv_on_chain = raw_data.inventory[c]
                 for inv_holder in inv_on_chain:
                     for (_, token) in iter(inv_on_chain[inv_holder]):
                         if token.symbol == BOB_TOKEN_SYMBOL:
                             unused_supply += token.tvl
-                        if token.symbol in all_fees:
-                            all_fees[token.symbol] += token.fees
+                        if token.symbol in all_inv_fees:
+                            all_inv_fees[token.symbol] += token.fees
                         else:
-                            all_fees[token.symbol] = token.fees
+                            all_inv_fees[token.symbol] = token.fees
                 d = ChainStats(
                     dt = timestamp,
                     chain = self._chain_names[c],
@@ -84,12 +84,15 @@ class Stats:
                     colCirculatingSupply = raw_data.supply[c] - unused_supply,
                     volumeUSD = raw_data.volume[c] if c in raw_data.volume else 0,
                     holders = raw_data.holders[c] if c in raw_data.holders else 0,
-                    fees = all_fees
+                    gain = GainStats(
+                        fees=[OneTokenAcc(
+                            symbol=t,
+                            amount=all_inv_fees[t]
+                        ) for t in all_inv_fees]
+                    )
                 )
-                info(f'Stats for chain {d}')
+                info(f'Stats for chain {d.dict()}')
                 dat.append(d)
             else:
                 error(f'No data for "{c}"')
         return dat
-
-

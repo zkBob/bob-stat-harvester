@@ -20,7 +20,7 @@ class Settings(FeedingServiceSettings):
     max_workers: int = 5
     tsdb_dir: str = '.'
     bob_composed_stat_db: str = 'bobstat_composed.csv'
-    bob_composed_fees_stat_db: str = 'bobstat_comp_fees.csv'
+    bob_composed_fees_stat_db: str = 'bobstat_comp_yield.csv'
     bobvault_fees_db_suffix: str = 'bobvault-fees.csv'
     w3_providers: dict = {}
 

@@ -9,8 +9,7 @@ from copy import copy
 from tinyflux import TinyFlux, Point, TimeQuery
 
 from utils.logging import info, error
-
-ZERO_DATETIME = datetime.fromtimestamp(0)
+from utils.constants import ZERO_DATETIME
 
 FeesDict = Dict[str, Union[str, int, Decimal]]
 
