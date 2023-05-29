@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Optional
 
 from pydantic import Extra
 
@@ -14,25 +15,29 @@ from utils.constants import ONE_DAY
 from utils.misc import CustomJSONEncoder, DACheckResults
 
 from .db import DBAdapter
-from .common import StatsByChains
+from .common import StatsByChains, GainStats
 
-class BobStatsPeriodData(TimestampedBaseModel, extra=Extra.forbid):
+class BobStatsPeriodDataAPI(TimestampedBaseModel, extra=Extra.forbid):
     totalSupply: Decimal
     collaterisedCirculatedSupply: Decimal
     volumeUSD: Decimal
     holders: int
 
-class BobStatsDataForTwoPeriods(TimestampedBaseModel, extra=Extra.forbid):
-    current: BobStatsPeriodData
-    previous: BobStatsPeriodData
+class BobStatsPeriodDataToFeed(BobStatsPeriodDataAPI, extra=Extra.forbid):
+    gain: Optional[GainStats]
 
-def _chainsdata_to_bobstats(stats: StatsByChains) -> BobStatsPeriodData:
-    bobstats = BobStatsPeriodData(
+class BobStatsDataForTwoPeriodsToFeed(TimestampedBaseModel, extra=Extra.forbid):
+    current: BobStatsPeriodDataToFeed
+    previous: BobStatsPeriodDataToFeed
+
+def _chainsdata_to_bobstats(stats: StatsByChains) -> BobStatsPeriodDataToFeed:
+    bobstats = BobStatsPeriodDataToFeed(
         timestamp = 0,
         totalSupply = 0,
         collaterisedCirculatedSupply = 0,
         volumeUSD = 0,
-        holders = 0
+        holders = 0,
+        gain = GainStats(fees = [])
     )
     ts = 0
     for ch_d in stats:
@@ -41,10 +46,14 @@ def _chainsdata_to_bobstats(stats: StatsByChains) -> BobStatsPeriodData:
         bobstats.collaterisedCirculatedSupply += ch_d.colCirculatingSupply
         bobstats.volumeUSD += ch_d.volumeUSD
         bobstats.holders += ch_d.holders
+        bobstats.gain.adjust(ch_d.gain)
+    
+    if bobstats.gain.is_empty():
+        bobstats.gain = None
     bobstats.timestamp = ts
     return bobstats
 
-def prepare_data_for_feeding(stats: StatsByChains, db: DBAdapter) -> BobStatsDataForTwoPeriods:
+def prepare_data_for_feeding(stats: StatsByChains, db: DBAdapter) -> BobStatsDataForTwoPeriodsToFeed:
     cur = _chainsdata_to_bobstats(stats)
     info(f'Current stat: {cur}')
 
@@ -55,7 +64,7 @@ def prepare_data_for_feeding(stats: StatsByChains, db: DBAdapter) -> BobStatsDat
     prev = _chainsdata_to_bobstats(previous_data)
     info(f'Previous stat: {prev}')
 
-    return BobStatsDataForTwoPeriods(
+    return BobStatsDataForTwoPeriodsToFeed(
         timestamp = int(time()),
         current = cur,
         previous = prev
@@ -63,8 +72,8 @@ def prepare_data_for_feeding(stats: StatsByChains, db: DBAdapter) -> BobStatsDat
 
 class BobStatsConnector(UploadingConnector):
 
-    def upload_bobstats(self, data: BobStatsDataForTwoPeriods) -> bool:
-        data_as_str = dumps(data.dict(), cls=CustomJSONEncoder)
+    def upload_bobstats(self, data: BobStatsDataForTwoPeriodsToFeed) -> bool:
+        data_as_str = dumps(data.dict(exclude_unset=True), cls=CustomJSONEncoder)
         info(f'connector: uploading stats')
 
         return self._upload(data_as_str)

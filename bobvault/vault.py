@@ -12,7 +12,7 @@ from utils.settings.models import BobVaultInventory
 from .base_vault import BaseBobVault
 from .contract import BobVaultContract
 from .settings import Settings, discover_inventory
-from .abs_processor import BobVaultLogsProcessor
+from .base_processor import BobVaultLogsProcessor
 
 class BobVault(BaseBobVault):
     _w3prov: Web3Provider

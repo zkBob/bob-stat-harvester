@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_EXCEPTION
 from bobvault.settings import Settings
 from bobvault.vault import BobVault
 from bobvault.processors.coingecko.coingecko import CoinGeckoAdapter
+from bobvault.processors.fees.processor import FeesAdapter
 
 from utils.logging import error, info
 from utils.misc import InitException
@@ -33,6 +34,7 @@ class BobVaultTrades:
             for ch in chains:
                 v = BobVault(ch, settings)
                 v.register_processor(CoinGeckoAdapter(ch, settings))
+                v.register_processor(FeesAdapter(ch, settings))
                 self._vaults.append(v)
         else:
             error(f'Chain list is emtpy')
@@ -47,8 +49,9 @@ class BobVaultTrades:
             vault_futures = {executor.submit(task, vault): vault.getChainId() for vault in self._vaults}
             done = wait(vault_futures, return_when = FIRST_EXCEPTION)[0]
             for f in done:
-                if f.exception():
-                    error(f'Not able to handle BobVault successfully in {vault_futures[f]}')
+                ex = f.exception()
+                if ex:
+                    error(f'Not able to handle BobVault successfully in {vault_futures[f]}: {ex}')
 
     def monitor_feeding_service(self):
         enable_logs = False

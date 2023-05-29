@@ -4,6 +4,8 @@ from decimal import Decimal
 
 from web3 import Web3
 
+from bobstats.settings import Settings
+
 from utils.web3 import Web3Provider, ERC20Token
 from utils.settings.models import UniswapLikeInventory
 from utils.logging import error
@@ -70,7 +72,7 @@ class InventoryHandler:
         return {}
 
     @classmethod
-    def generate_handler(cls, w3: Web3Provider, params: UniswapLikeInventory):
+    def generate_handler(cls, w3: Web3Provider, params: UniswapLikeInventory, setting: Settings):
         return cls()
 
 class UniswapLikeInventoryHandler(InventoryHandler):
@@ -89,7 +91,7 @@ class UniswapLikeInventoryHandler(InventoryHandler):
         self.owner = position_owner
 
     @classmethod
-    def generate_handler(cls, w3: Web3Provider, params: UniswapLikeInventory):
+    def generate_handler(cls, w3: Web3Provider, params: UniswapLikeInventory, _: Settings):
         pm = Web3.toChecksumAddress(params.pos_manager)
         ow = Web3.toChecksumAddress(params.owner)
         return cls(w3, pm, ow)

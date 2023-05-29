@@ -14,7 +14,7 @@ from .feeding import CoinGeckoFeedingServiceConnector
 
 from bobvault.contract import BobVaultContract
 from bobvault.settings import Settings, discover_inventory
-from bobvault.abs_processor import BobVaultLogsProcessor
+from bobvault.base_processor import BobVaultLogsProcessor
 from bobvault.models import BobVaultTrade, BobVaultCollateral
 
 from .models import PairOrderbookModel, PairTradesModel, PairDataModelInterim, \
@@ -27,7 +27,6 @@ ONE = Decimal("1.0")
 TEN = Decimal("10.0")
 
 class CoinGeckoAdapter(BobVaultLogsProcessor):
-    _chainid: str
     _w3prov: Web3Provider
     _contract: BobVaultContract
     _pool_id: str
@@ -52,15 +51,12 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
                 cache_ttl=(settings.feeding_service_monitor_interval // 2)
             )
 
-        self._chainid = chainid
+        super().__init__(chainid)
         self._full_filename = f'{settings.snapshot_dir}/{chainid}-{settings.coingecko_file_suffix}'
         self._w3prov = settings.w3_providers[chainid]
         if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
             error(f'coingecko:{self._chainid}: inventory is not found')
             raise InitException
-
-    def __repr__(self):
-        return type(self).__name__
 
     def pre(self, snapshot: dict) -> bool:
         now = int(time())
