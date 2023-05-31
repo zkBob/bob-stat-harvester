@@ -8,10 +8,11 @@ from utils.logging import info, error, warning
 from utils.web3 import Web3Provider
 from utils.misc import CustomJSONEncoder, InitException
 from utils.settings.models import BobVaultInventory
+from utils.settings.utils import discover_bobvault_inventory
 
 from .base_vault import BaseBobVault
 from .contract import BobVaultContract
-from .settings import Settings, discover_inventory
+from .settings import Settings
 from .base_processor import BobVaultLogsProcessor
 
 class BobVault(BaseBobVault):
@@ -33,7 +34,7 @@ class BobVault(BaseBobVault):
         super().__init__(chainid, settings.snapshot_dir, settings.snapshot_file_suffix)
         self._w3prov = settings.w3_providers[chainid]
         self._finalization_delay = settings.chains[chainid].finalization
-        if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
+        if not discover_bobvault_inventory(settings.chains[chainid].inventories, inventory_setup):
             error(f'bobvault:{self._chainid}: inventory is not found')
             raise InitException
         

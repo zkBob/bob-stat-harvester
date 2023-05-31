@@ -6,9 +6,10 @@ from utils.web3 import Web3Provider, ERC20Token
 from utils.logging import info, error
 from utils.misc import InitException
 from utils.settings.models import BobVaultInventory
+from utils.settings.utils import discover_bobvault_inventory
 
 from bobvault.base_processor import BobVaultLogsProcessor
-from bobvault.settings import Settings, discover_inventory
+from bobvault.settings import Settings
 from bobvault.models import BobVaultTrade
 
 class Registrar(BobVaultLogsProcessor):
@@ -22,7 +23,7 @@ class Registrar(BobVaultLogsProcessor):
 
         super().__init__(chainid)
         self._w3prov = settings.w3_providers[chainid]
-        if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
+        if not discover_bobvault_inventory(settings.chains[chainid].inventories, inventory_setup):
             error(f'registrar:{self._chainid}: inventory is not found')
             raise InitException
         

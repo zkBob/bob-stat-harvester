@@ -1,8 +1,9 @@
 from utils.logging import error
 from utils.misc import InitException
 from utils.settings.models import BobVaultInventory
+from utils.settings.utils import discover_bobvault_inventory
 
-from bobvault.settings import Settings, discover_inventory
+from bobvault.settings import Settings
 
 from .base import DBGenericAdapter
 
@@ -14,7 +15,7 @@ class DBAdapter(DBGenericAdapter):
         
         super().__init__()
         self._log_prefix = f'db:{chainid}'
-        if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
+        if not discover_bobvault_inventory(settings.chains[chainid].inventories, inventory_setup):
             error(f'{self._log_prefix }: inventory is not found')
             raise InitException
         self._fees_stats_filename = f'{settings.tsdb_dir}/{self._pool_id}-{settings.fees_stat_db_suffix}'

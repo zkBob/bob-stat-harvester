@@ -4,6 +4,8 @@ from decimal import Decimal
 from bobvault.base_vault import BaseBobVault
 
 from utils.logging import info
+from utils.settings.models import BobVaultInventory
+from utils.settings.utils import discover_bobvault_inventory
 
 from ..settings import Settings
 
@@ -15,10 +17,10 @@ class VolumeOnBobVaults(GenericVolumeAdapter):
     def __init__(self, settings: Settings):
         self._vaults = {}
         for chainid in settings.chains:
-            for inv in settings.chains[chainid].inventories:
-                if inv.protocol == "BobVault":
-                    self._vaults[chainid] = BaseBobVault(chainid, settings.snapshot_dir, settings.bobvault_snapshot_file_suffix)
-                    break
+            def inventory_setup(inv: BobVaultInventory):
+                self._vaults[chainid] = BaseBobVault(chainid, settings.snapshot_dir, settings.bobvault_snapshot_file_suffix)
+
+            discover_bobvault_inventory(settings.chains[chainid].inventories, inventory_setup)
 
     def get_volume(self) -> Dict[str, Decimal]:
         info(f'bobvault: getting volume through {"/".join(self._vaults)} chains')
