@@ -30,12 +30,14 @@ services:
         - CHAIN_SELECTOR=bsc,pol,eth,opt,arb1
         - MEASUREMENTS_INTERVAL=900
         - SNAPSHOT_DIR=snapshots
+        - TSDB_DIR=tsdb
         - FEEDING_SERVICE_URL=https://where.bob-circulating-supply.deployed
         - FEEDING_SERVICE_HEALTH_PATH=/health
         - FEEDING_SERVICE_UPLOAD_TOKEN=@uth70ken
     volumes:
         - ./token-deployments-info.json:/app/token-deployments-info.json
         - ./snapshots:/app/snapshots
+        - ./tsdb:/app/tsdb
     restart: unless-stopped
     logging:
         driver: "json-file"
