@@ -19,6 +19,7 @@ class Settings(FeedingServiceSettings):
     snapshot_dir: str = '.'
     snapshot_file_suffix: str = 'bobvault-snaphsot.json'
     coingecko_file_suffix: str = 'bobvault-coingecko-data.json'
+    registrar_file_suffix: str = 'bobvault-tokens.json'
     tsdb_dir: str = '.'
     fees_stat_db_suffix: str = 'bobvault-fees.csv'
     w3_providers: dict = {}

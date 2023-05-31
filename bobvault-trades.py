@@ -8,6 +8,7 @@ from bobvault.settings import Settings
 from bobvault.vault import BobVault
 from bobvault.processors.coingecko.coingecko import CoinGeckoAdapter
 from bobvault.processors.fees.processor import FeesAdapter
+from bobvault.processors.registrar.processor import Registrar
 
 from utils.logging import error, info
 from utils.misc import InitException
@@ -35,6 +36,7 @@ class BobVaultTrades:
                 v = BobVault(ch, settings)
                 v.register_processor(CoinGeckoAdapter(ch, settings))
                 v.register_processor(FeesAdapter(ch, settings))
+                v.register_processor(Registrar(ch, settings))
                 self._vaults.append(v)
         else:
             error(f'Chain list is emtpy')
