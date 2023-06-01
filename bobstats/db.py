@@ -37,7 +37,6 @@ def _chainstats_to_datapoints(chaindata: ChainStats) -> StatsDataPoints:
     ch_d = chaindata.dict()
     dt = datetime.fromtimestamp(ch_d['dt'])
     chain_tag = ch_d['chain']
-    info(f"------- {ch_d['gain']}")
     if ch_d['gain']:
         inventory_fees = ch_d['gain']['fees']
         interest = ch_d['gain']['interest'] if 'interest' in ch_d['gain'] else None
@@ -213,7 +212,6 @@ class DBAdapter:
         comp_yield_points = []
         for orig_ch_d in stats:
             stats_dps = _chainstats_to_datapoints(orig_ch_d)
-            info(f'----- {stats_dps.main}, {stats_dps.fees}, {stats_dps.interest}')
             composed_points.append(stats_dps.main)
             if stats_dps.fees:
                 comp_yield_points.append(stats_dps.fees)
