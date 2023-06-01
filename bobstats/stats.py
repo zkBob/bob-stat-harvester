@@ -11,7 +11,8 @@ from .supply import Supply
 from .holders import Holders
 from .inventory import Inventory
 from .volume import Volume
-from .common import StatsByChains, ChainStats, GainStats, OneTokenAcc
+from .interest import InterestStats, InterestsGenerators, aggregate_interest_stats
+from .common import StatsByChains, ChainStats, GainStats, OneTokenAcc, YieldSet
 
 from .inventories.common import UniswapLikeInventoryStats, BobVaultInventoryStats
 
@@ -22,12 +23,14 @@ class RawStatsData(BaseModel):
     holders: Dict[str, int]
     inventory: Dict[str, Dict[str, Union[UniswapLikeInventoryStats, BobVaultInventoryStats]]]
     volume: Dict[str, Decimal]
+    interest: Dict[str, InterestsGenerators]
 
 class Stats:
     _supply: Supply
     _holders: Holders
     _inventory: Inventory
     _volume: Volume
+    _interest: InterestStats
     _chain_names: Dict[str, str]
 
     def __init__(self, settings: Settings):
@@ -35,6 +38,7 @@ class Stats:
         self._holders = Holders(settings)
         self._inventory = Inventory(settings)
         self._volume = Volume(settings)
+        self._interest = InterestStats(settings)
 
         self._chain_names = {}
         for chainid in settings.chains:
@@ -45,6 +49,7 @@ class Stats:
         inv = self._inventory.get_inventory() if len(ts) != 0 else {}
         hldrs = self._holders.get_bob_holders_amount() if len(inv) != 0 else {}
         vol = self._volume.get_volume() if len(hldrs) != 0 else {}
+        intrs = self._interest.get_interest() if len(vol) != 0 else {}
 
         if (len(ts) == 0) or \
            (len(inv) == 0) or \
@@ -52,7 +57,7 @@ class Stats:
            (len(vol) == 0):
             return None
 
-        return RawStatsData(supply=ts, holders=hldrs, inventory=inv, volume=vol)
+        return RawStatsData(supply=ts, holders=hldrs, inventory=inv, volume=vol, interest=intrs)
 
     def generate(self, timestamp = None) -> StatsByChains:
         raw_data = self._collect()
@@ -88,7 +93,8 @@ class Stats:
                         fees=[OneTokenAcc(
                             symbol=t,
                             amount=all_inv_fees[t]
-                        ) for t in all_inv_fees]
+                        ) for t in all_inv_fees],
+                        interest=aggregate_interest_stats(raw_data.interest[c]) if raw_data.interest else None
                     )
                 )
                 info(f'Stats for chain {d.dict()}')
