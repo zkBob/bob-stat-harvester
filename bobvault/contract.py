@@ -10,7 +10,7 @@ from utils.web3 import Web3Provider, ERC20Token
 from utils.abi import get_abi, ABI
 from utils.constants import BOB_TOKEN_ADDRESS
 
-from .models import TradeArgs, BobVaultTrade, BobVaultCollateral
+from .models import TradeArgs, BobVaultTrade, BobVaultCollateral, BobVaultCollateralStat
 
 @cache
 class BobVaultContract:
@@ -139,4 +139,25 @@ class BobVaultContract:
             outFee=resp[6]
         )
         info(f'bv_contract:{self._w3prov.chainid}: collateral info is: {reval}')
+        return reval
+
+    def get_stat(self, token: str, bn: int = -1) -> BobVaultCollateralStat:
+        info(f'bv_contract:{self._w3prov.chainid}: getting collateral stat for {token}')
+        if bn == -1:
+            resp = self._w3prov.make_call(self._contract.functions.stat(token).call)
+        else:
+            resp = self._w3prov.make_call(self._contract.functions.stat(token).call, block_identifier=bn)
+        if resp:
+            reval = BobVaultCollateralStat(
+                total=resp[0],
+                required=resp[1],
+                farmed=resp[2]
+            )
+        else:
+            reval = BobVaultCollateralStat(
+                total=0,
+                required=0,
+                farmed=0
+            )
+        info(f'bv_contract:{self._w3prov.chainid}: collateral stat is: {reval}')
         return reval
