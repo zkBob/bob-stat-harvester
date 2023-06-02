@@ -14,6 +14,7 @@ class Settings(FeedingServiceSettings):
     snapshot_dir: str = '.'
     bobvault_snapshot_file_suffix: str = 'bobvault-snaphsot.json'
     balances_snapshot_file_suffix: str = 'bob-holders-snaphsot.json'
+    bobvault_registrar_file_suffix: str = 'bobvault-tokens.json'
     coingecko_retry_attempts: int = 2
     coingecko_retry_delay: int = 5
     coingecko_include_anomalies: bool = True

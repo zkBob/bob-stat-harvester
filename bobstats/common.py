@@ -6,11 +6,11 @@ class OneTokenAcc(BaseModel):
     symbol: str
     amount: Decimal
 
-GainSet = List[OneTokenAcc]
+YieldSet = List[OneTokenAcc]
 
 class GainStats(BaseModel):
-    fees: GainSet
-    interest: Optional[GainSet]
+    fees: YieldSet
+    interest: Optional[YieldSet]
 
     def is_empty(self) -> bool:
         retval = True
@@ -33,7 +33,7 @@ class GainStats(BaseModel):
         return retval
 
     def adjust(self, source):
-        def adjust_gain_set(fees_source: GainSet, fees_target: GainSet):
+        def adjust_gain_set(fees_source: YieldSet, fees_target: YieldSet):
             for f in fees_source:
                 found = False
                 for target in fees_target:

@@ -1,24 +1,15 @@
-from typing import Dict, List, Union, Callable
+from typing import Dict
 
 from utils.settings.feeding import FeedingServiceSettings
-from utils.settings.models import InventoriesList
 from utils.logging import info
 from utils.web3 import Web3Provider
-
-def discover_inventory(inventories: InventoriesList, func: Callable):
-    bobvault_found = False
-    for inv in inventories:
-        if inv.protocol == "BobVault":
-            func(inv)
-            bobvault_found = True
-            break
-    return bobvault_found
 
 class Settings(FeedingServiceSettings):
     chain_selector: str = 'pol'
     snapshot_dir: str = '.'
     snapshot_file_suffix: str = 'bobvault-snaphsot.json'
     coingecko_file_suffix: str = 'bobvault-coingecko-data.json'
+    registrar_file_suffix: str = 'bobvault-tokens.json'
     tsdb_dir: str = '.'
     fees_stat_db_suffix: str = 'bobvault-fees.csv'
     w3_providers: dict = {}

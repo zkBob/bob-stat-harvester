@@ -9,11 +9,12 @@ from utils.logging import info, error
 from utils.constants import ONE_DAY, BOB_TOKEN_ADDRESS, ONE_ETHER
 from utils.misc import CustomJSONEncoder, InitException
 from utils.settings.models import BobVaultInventory
+from utils.settings.utils import discover_bobvault_inventory
 
 from .feeding import CoinGeckoFeedingServiceConnector
 
 from bobvault.contract import BobVaultContract
-from bobvault.settings import Settings, discover_inventory
+from bobvault.settings import Settings
 from bobvault.base_processor import BobVaultLogsProcessor
 from bobvault.models import BobVaultTrade, BobVaultCollateral
 
@@ -54,7 +55,7 @@ class CoinGeckoAdapter(BobVaultLogsProcessor):
         super().__init__(chainid)
         self._full_filename = f'{settings.snapshot_dir}/{chainid}-{settings.coingecko_file_suffix}'
         self._w3prov = settings.w3_providers[chainid]
-        if not discover_inventory(settings.chains[chainid].inventories, inventory_setup):
+        if not discover_bobvault_inventory(settings.chains[chainid].inventories, inventory_setup):
             error(f'coingecko:{self._chainid}: inventory is not found')
             raise InitException
 

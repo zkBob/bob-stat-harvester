@@ -32,3 +32,8 @@ class BobVaultCollateral(BaseModel):
     price: int
     inFee: int
     outFee: int
+
+class BobVaultCollateralStat(BaseModel):
+    total: int
+    required: int
+    farmed: int

@@ -8,8 +8,9 @@ from time import sleep
 from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 from web3.eth import Contract
+from web3.exceptions import ContractLogicError
 
-from .logging import info, error
+from .logging import info, error, warning
 from .abi import get_abi, ABI
 
 class Web3Provider:
@@ -38,6 +39,9 @@ class Web3Provider:
         while True:
             try:
                 return func(*args, **kwargs)
+            except ContractLogicError as e:
+                warning(f'{self.chainid}: {func} failed: {e}')
+                return None
             except Exception as e:
                 exc = e
                 error(f'{self.chainid}: not able to get data: {e}')
