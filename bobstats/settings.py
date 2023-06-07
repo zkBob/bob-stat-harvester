@@ -24,6 +24,7 @@ class Settings(FeedingServiceSettings):
     bob_composed_fees_stat_db: str = 'bobstat_comp_yield.csv'
     bobvault_fees_db_suffix: str = 'bobvault-fees.csv'
     w3_providers: dict = {}
+    measurements_interval: int = 60 * 60 * 2 - 30
 
     def __init__(self):
         def init_w3_providers():

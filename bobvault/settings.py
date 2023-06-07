@@ -13,6 +13,7 @@ class Settings(FeedingServiceSettings):
     tsdb_dir: str = '.'
     fees_stat_db_suffix: str = 'bobvault-fees.csv'
     w3_providers: dict = {}
+    measurements_interval: int = 15
     max_workers: int = 5
 
     def __init__(self):
