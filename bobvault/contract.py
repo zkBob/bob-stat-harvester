@@ -1,12 +1,10 @@
 from functools import cache
 
-from decimal import Decimal
-
 from web3 import Web3
 from web3.eth import Contract
 
 from utils.logging import info
-from utils.web3 import Web3Provider, ERC20Token
+from utils.web3 import Web3Provider, CachedERC20Token as ERC20Token
 from utils.abi import get_abi, ABI
 from utils.constants import BOB_TOKEN_ADDRESS
 
