@@ -8,7 +8,7 @@ from utils.logging import info, error, warning
 from utils.misc import every
 
 from balances.settings import Settings
-from balances.main import Indexer
+from balances.indexer import Indexer
 
 class IndexerWorker:
     _chain: str
