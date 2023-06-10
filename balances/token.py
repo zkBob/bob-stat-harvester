@@ -17,8 +17,6 @@ class BobTokenContract(ERC20Token):
         self._transfer_filter = self.contract.events.Transfer.build_filter()
 
     def process_transfer_log(self, _event):
-        info(f'{_event}')
-        # pl = self._transfer_handler(_event)
         pl = self.contract.events.Transfer().processLog(_event)
         blockhash = Web3.toHex(pl.blockHash)
         l = { 
