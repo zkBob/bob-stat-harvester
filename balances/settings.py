@@ -9,9 +9,9 @@ class Settings(CommonSettings):
     snapshot_file_suffix: str = 'bob-holders-snaphsot.json'
     tsdb_dir: str = '.'
     tsdb_file_suffix: str = 'bob-transfers.csv'
+    default_measurements_interval: int = 5
+    threads_liveness_interval: int = 60
     w3_providers: dict = {}
-    default_measurements_interval: int = 60
-    max_workers: int = 5
 
     def __init__(self):
         def init_w3_providers():
