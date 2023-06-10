@@ -18,8 +18,10 @@ WORKDIR /app
 COPY abi abi
 COPY main-harvester.py .
 COPY bobvault-trades.py .
+COPY bob-transfer-indexer.py .
 COPY bobstats bobstats
 COPY bobvault bobvault
+COPY balances balances
 COPY feeding feeding
 COPY utils utils
 
