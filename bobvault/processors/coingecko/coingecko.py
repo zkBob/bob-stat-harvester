@@ -4,7 +4,7 @@ from typing import Tuple
 from time import time
 from json import dump, load
 
-from utils.web3 import Web3Provider, ERC20Token
+from utils.web3 import Web3Provider, CachedERC20Token as ERC20Token
 from utils.logging import info, error
 from utils.constants import ONE_DAY, BOB_TOKEN_ADDRESS, ONE_ETHER
 from utils.misc import CustomJSONEncoder, InitException

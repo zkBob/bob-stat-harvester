@@ -61,7 +61,6 @@ class GenericSettings(BaseSettings):
 class CommonSettings(GenericSettings):
     token_address: str = BOB_TOKEN_ADDRESS
     token_depoloyments_info: str = 'token-deployments-info.json'
-    measurements_interval: int = 60 * 60 * 2 - 30
     web3_retry_attemtps: int = 2
     web3_retry_delay: int = 5
     chains: dict = {}

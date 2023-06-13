@@ -5,7 +5,7 @@ from web3 import Web3
 
 from bobstats.settings import Settings
 
-from utils.web3 import Web3Provider, ERC20Token
+from utils.web3 import Web3Provider, CachedERC20Token as ERC20Token
 from utils.settings.models import InventoryHolder
 from utils.constants import BOB_TOKEN_ADDRESS
 from utils.logging import info, error

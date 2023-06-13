@@ -18,7 +18,7 @@ from utils.settings.utils import discover_bobvault_inventory
 from utils.settings.models import BobVaultInventory
 from utils.logging import info, error
 from utils.constants import BOB_TOKEN_ADDRESS, ZERO_ADDRESS, ONE_DAY
-from utils.web3 import ERC20Token, Web3Provider
+from utils.web3 import CachedERC20Token as ERC20Token, Web3Provider
 
 InterestsGenerators = Dict[str, YieldSet]
 

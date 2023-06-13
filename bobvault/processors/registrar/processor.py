@@ -2,7 +2,7 @@ from typing import Dict
 
 from json import dump
 
-from utils.web3 import Web3Provider, ERC20Token
+from utils.web3 import Web3Provider, CachedERC20Token as ERC20Token
 from utils.logging import info, error
 from utils.misc import InitException
 from utils.settings.models import BobVaultInventory

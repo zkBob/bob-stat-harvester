@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, wait, FIRST_EXCEPTION
 from .settings import Settings
 
 from utils.logging import info, error
-from utils.web3 import ERC20Token, Web3Provider
+from utils.web3 import CachedERC20Token as ERC20Token, Web3Provider
 from utils.constants import BOB_TOKEN_ADDRESS
 
 class Supply:

@@ -1,20 +1,17 @@
 from typing import Dict
 
-from utils.settings.feeding import FeedingServiceSettings
+from utils.settings.common import CommonSettings
 from utils.logging import info
-from utils.web3 import Web3Provider
+from .web3 import Web3ProviderExt
 
-class Settings(FeedingServiceSettings):
-    chain_selector: str = 'pol'
+class Settings(CommonSettings):
     snapshot_dir: str = '.'
-    snapshot_file_suffix: str = 'bobvault-snaphsot.json'
-    coingecko_file_suffix: str = 'bobvault-coingecko-data.json'
-    registrar_file_suffix: str = 'bobvault-tokens.json'
+    snapshot_file_suffix: str = 'bob-holders-snaphsot.json'
     tsdb_dir: str = '.'
-    fees_stat_db_suffix: str = 'bobvault-fees.csv'
+    tsdb_file_suffix: str = 'bob-transfers.csv'
+    default_measurements_interval: int = 5
+    threads_liveness_interval: int = 60
     w3_providers: dict = {}
-    measurements_interval: int = 15
-    max_workers: int = 5
 
     def __init__(self):
         def init_w3_providers():
@@ -22,14 +19,16 @@ class Settings(FeedingServiceSettings):
             # since chains is not filled at the moment applying the sources
             info(f'Init web3 providers')
             for chainid in self.chains:
-                self.w3_providers[chainid] = Web3Provider(
+                self.w3_providers[chainid] = Web3ProviderExt(
                     chainid,
                     self.chains[chainid].rpc.url,
                     self.web3_retry_attemtps,
-                    self.web3_retry_delay
+                    self.web3_retry_delay,
+                    self.chains[chainid].finalization,
+                    self.chains[chainid].rpc.history_block_range
                 )
 
-        def web3_providers_formatter(w3_providers: Dict[str, Web3Provider]) -> str:
+        def web3_providers_formatter(w3_providers: Dict[str, Web3ProviderExt]) -> str:
             providers_to_str = {}
             for c in w3_providers:
                 providers_to_str[c] = w3_providers[c].w3.provider.endpoint_uri

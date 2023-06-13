@@ -45,10 +45,11 @@ services:
             max-size: "10m"
             max-file: "1"
   balances-indexer:
-    image: ghcr.io/zkbob/bob-balances-indexer:${RELAYER_IMAGE:-latest}
+    image: ghcr.io/zkbob/bob-stat-harvester:${RELAYER_IMAGE:-latest}
+    entrypoint: ["python", "bob-transfer-indexer.py"]
     container_name: balances-indexer
     environment:
-        - DEFAULT_MEASUREMENTS_INTERVAL=1
+        - DEFAULT_MEASUREMENTS_INTERVAL=5
         - SNAPSHOT_DIR=snapshots
         - TSDB_DIR=tsdb
     volumes:

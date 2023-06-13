@@ -53,7 +53,6 @@ class Web3Provider:
                 break
         raise exc
 
-@cache
 class ERC20Token:
     contract: Contract
     w3_provider: Web3Provider
@@ -103,3 +102,7 @@ class ERC20Token:
             retval = Decimal(retval)
         info(f'{self.w3_provider.chainid}: balanceOf is {retval} (normalized = {normalize})')
         return retval
+
+@cache
+class CachedERC20Token(ERC20Token):
+    pass

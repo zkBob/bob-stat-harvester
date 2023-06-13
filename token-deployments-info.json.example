@@ -162,7 +162,7 @@
         "start_block":"66373989"
       },
       "coingecko":{
-        "known":["uniswap_v3_arbitrum", "kyberswap_elastic_arbitrum"]
+        "known":["uniswap_v3_arbitrum", "kyberswap_elastic_arbitrum", "wombat_arbitrum"]
       }
     }
   }
