@@ -10,7 +10,8 @@ from tinyflux import TinyFlux, Point
 
 from utils.logging import info
 
-from ..settings  import Settings
+from .models import DBAConfig
+from .exceptions import NotInitialized
 
 ONE_BLN = Decimal(10 ** 9)
 
@@ -31,10 +32,12 @@ class TransfersDB:
     _tsdb_file_sufix: str
     _points: Dict[str, List[Point]]
 
-    def __init__(self, chainid: str, settings: Settings):
-        self._chain = chainid
-        self._tsdb_dir = settings.tsdb_dir
-        self._tsdb_file_sufix = settings.tsdb_file_suffix
+    def __init__(self, config: DBAConfig):
+        self._chain = config.chainid
+        if not config.tsdb_dir or not config.tsdb_file_suffix:
+            raise NotInitialized()
+        self._tsdb_dir = config.tsdb_dir
+        self._tsdb_file_sufix = config.tsdb_file_suffix
 
     def prepare_transaction(self):
         self._points = {}

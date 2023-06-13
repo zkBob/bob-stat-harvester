@@ -5,10 +5,8 @@ from json import load, dump
 from utils.logging import info
 from utils.constants import ZERO_ADDRESS
 
-from ..settings  import Settings
-
-class NotInitialized(Exception):
-    pass
+from .models import DBAConfig
+from .exceptions import NotInitialized
 
 class BalancesDB:
     _chain: str
@@ -16,10 +14,10 @@ class BalancesDB:
     _token_start_block: int
     _snapshot: int
 
-    def __init__(self, chainid: str, settings: Settings):
-        self._chain = chainid
-        self._snapshot_fn = f'{settings.snapshot_dir}/{chainid}-{settings.snapshot_file_suffix}'
-        self._token_start_block = settings.chains[chainid].token.start_block
+    def __init__(self, config: DBAConfig):
+        self._chain = config.chainid
+        self._snapshot_fn = f'{config.snapshot_dir}/{config.chainid}-{config.snapshot_file_suffix}'
+        self._token_start_block = config.init_block
         self._snapshot = None
 
     def _empty_snapshot(self) -> dict:
@@ -42,7 +40,12 @@ class BalancesDB:
         if not self._snapshot:
             self.load()
         return self._snapshot['last_block']
-    
+
+    def get_holders_count(self) -> int:
+        if not self._snapshot:
+            self.load()
+        return len(self._snapshot['balances'])
+
     def _change_balance(self, account: str, value: Decimal):
         prev_balance = Decimal(0)
         if account in self._snapshot['balances']:

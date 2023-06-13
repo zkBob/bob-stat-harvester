@@ -1,18 +1,27 @@
 from .balances import BalancesDB
 from .transfers import TransfersDB
-from ..settings import Settings
+from .models import DBAConfig
+from .exceptions import NotInitialized
 
 class DBAdapter:
     _balances: BalancesDB
+    _transfers: TransfersDB
 
-    def __init__(self, chainid: str, settings: Settings):
-        self._balances = BalancesDB(chainid, settings)
-        self._transfers = TransfersDB(chainid, settings)
+    def __init__(self, config: DBAConfig):
+        self._balances = BalancesDB(config)
+        if config.tsdb_dir and config.tsdb_file_suffix:
+            self._transfers = TransfersDB(config)
 
     def get_last_block(self) -> int:
         return self._balances.get_last_block()
     
+    def get_holders_count(self) -> int:
+        return self._balances.get_holders_count()
+    
     def update(self, new_last_block: int, logs: list) -> bool:
+        if not self._transfers:
+            raise NotInitialized()
+        
         self._transfers.prepare_transaction()
         storages_updated = False
 

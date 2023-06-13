@@ -7,6 +7,7 @@ from .settings import Settings
 from .web3 import Web3ProviderExt
 from .token import BobTokenContract
 from .db.adapter import DBAdapter
+from .db.models import DBAConfig
 
 class Indexer:
     _chain: str
@@ -18,7 +19,14 @@ class Indexer:
         self._chain = chainid
         self._w3prov = settings.w3_providers[chainid]
         self._token = BobTokenContract(self._w3prov)
-        self._db = DBAdapter(chainid, settings)
+        self._db = DBAdapter(DBAConfig(
+            chainid=chainid,
+            snapshot_dir=settings.snapshot_dir,
+            snapshot_file_suffix=settings.snapshot_file_suffix,
+            init_block=settings.chains[chainid].token.start_block,
+            tsdb_dir=settings.tsdb_dir,
+            tsdb_file_suffix=settings.tsdb_file_suffix
+        ))
 
     def discover_balance_updates(self) -> Tuple[bool, bool]:
         info(f'{self._chain}: identifying dump range to identify balances updates')
